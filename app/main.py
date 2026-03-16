@@ -1,11 +1,22 @@
 import streamlit as st
 
-st.set_page_config(page_title="Runyi成长积分系统", page_icon="🌟", layout="centered")
+st.set_page_config(
+    page_title="Runyi Growth Points System",
+    page_icon="🌟",
+    layout="wide",
+)
 
-st.title("🌟 Runyi成长积分系统")
-st.write("欢迎来到 Runyi 的家庭成长积分世界！")
+st.title("🌟 Runyi Growth Points System")
+st.subheader("A simple family reward system for daily growth")
 
-st.subheader("今天可以做什么？")
-st.write("1. 记录任务完成情况")
-st.write("2. 查看当前积分")
-st.write("3. 兑换小奖励")
+st.markdown(
+    """
+Welcome to Runyi's growth dashboard.
+
+Use the left sidebar to open:
+- **Task Center**
+- More pages later: Weekly Summary, Reward Shop, History
+"""
+)
+
+st.info("This system follows the family rules exactly.")
