@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-from app.data_manager import load_points, load_daily_logs, load_redeem_logs
+from data_manager import load_points, load_daily_logs, load_redeem_logs
 
 st.markdown("---")
 st.subheader("🧸 Reward Redemption History")

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-from app.data_manager import load_points, load_daily_logs
+from data_manager import load_points, load_daily_logs
 
 st.set_page_config(page_title="Weekly Growth Report", page_icon="📝", layout="wide")
 

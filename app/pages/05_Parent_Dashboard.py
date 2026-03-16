@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from app.data_manager import load_points, load_daily_logs, load_redeem_logs, reset_week
+from data_manager import load_points, load_daily_logs, load_redeem_logs, reset_week
 
 st.set_page_config(page_title="Parent Dashboard", page_icon="👨‍👩‍👦", layout="wide")
 

@@ -1,5 +1,5 @@
 import streamlit as st
-from app.data_manager import load_points, save_points, append_daily_log
+from data_manager import load_points, save_points, append_daily_log
 
 # -------------------------
 # Page config
