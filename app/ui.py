@@ -6,11 +6,17 @@ import streamlit as st
 LANG_OPTIONS = {
     "中文": "zh",
     "English": "en",
+    "Deutsch": "de",
 }
 
 
-def t(zh: str, en: str) -> str:
-    return zh if st.session_state.get("lang", "zh") == "zh" else en
+def t(zh: str, en: str, de: str | None = None) -> str:
+    lang = st.session_state.get("lang", "zh")
+    if lang == "zh":
+        return zh
+    if lang == "de":
+        return de or en
+    return en
 
 
 def init_sidebar(current_route: str = "home") -> str:
@@ -21,16 +27,20 @@ def init_sidebar(current_route: str = "home") -> str:
     with top_left:
         if current_route != "home":
             st.markdown('<div class="home-chip">', unsafe_allow_html=True)
-            if st.button(t("🏠 返回主页", "🏠 Back Home"), key="go_home_top", use_container_width=True):
+            if st.button(t("🏠 返回主页", "🏠 Back Home", "🏠 Zurück zur Startseite"), key="go_home_top", use_container_width=True):
                 st.session_state["route"] = "home"
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.write("")
     with top_mid:
-        current_label = "中文" if st.session_state["lang"] == "zh" else "English"
+        current_label = {
+            "zh": "中文",
+            "en": "English",
+            "de": "Deutsch",
+        }.get(st.session_state["lang"], "中文")
         choice = st.segmented_control(
-            label=t("语言", "Language"),
+            label=t("语言", "Language", "Sprache"),
             options=list(LANG_OPTIONS.keys()),
             default=current_label,
             key="lang_segmented_control",
