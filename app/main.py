@@ -5,6 +5,7 @@ try:
     from .router_views import (
         render_edit_records,
         render_growth_report,
+        render_monthly_report,
         render_parent_dashboard,
         render_reward_shop,
         render_task_center,
@@ -17,6 +18,7 @@ except ImportError:
     from router_views import (
         render_edit_records,
         render_growth_report,
+        render_monthly_report,
         render_parent_dashboard,
         render_reward_shop,
         render_task_center,
@@ -29,6 +31,7 @@ ROUTES = {
     "home": {"emoji": "🗺️", "zh": "糖果地图", "en": "Candy Map", "de": "Bonbonkarte", "render": None},
     "task_center": {"emoji": "🍭", "zh": "任务糖果屋", "en": "Task Candy House", "de": "Aufgaben-Süßigkeitenhaus", "render": render_task_center},
     "weekly_summary": {"emoji": "📮", "zh": "总结邮局", "en": "Summary Post Office", "de": "Zusammenfassungs-Postamt", "render": render_weekly_summary},
+    "monthly_report": {"emoji": "🗓️", "zh": "月度报告", "en": "Monthly Report", "de": "Monatsbericht", "render": render_monthly_report},
     "reward_shop": {"emoji": "🧸", "zh": "奖励玩具店", "en": "Reward Toy Shop", "de": "Belohnungs-Spielzeugladen", "render": render_reward_shop},
     "growth_report": {"emoji": "🚪", "zh": "星星门报告", "en": "Star Gate Report", "de": "Sternentor-Bericht", "render": render_growth_report},
     "parent_dashboard": {"emoji": "🏡", "zh": "家长小屋", "en": "Parent Cottage", "de": "Elternhäuschen", "render": render_parent_dashboard},
@@ -155,12 +158,21 @@ if route == "home":
         )
     with row2[1]:
         render_map_card(
+            "monthly_report", "🗓️", "月度报告", "Monthly Report", "Monatsbericht",
+            "按月份回看积分、习惯和兑换情况。",
+            "Review points, habits, and redemptions by month.",
+            "Sieh dir Punkte, Gewohnheiten und Einlösungen nach Monat an.",
+        )
+    with row2[2]:
+        render_map_card(
             "parent_dashboard", "🏡", "家长小屋", "Parent Cottage", "Elternhäuschen",
             "给家长看一眼就懂的本周概览。",
             "A quick weekly overview for parents.",
             "Eine schnelle Wochenübersicht für Eltern auf einen Blick.",
         )
-    with row2[2]:
+
+    row3 = st.columns(3)
+    with row3[0]:
         render_map_card(
             "edit_records", "🛠️", "修修工坊", "Fix-It Workshop", "Reparaturwerkstatt",
             "如果历史记录需要改动，从这里进去。",

@@ -14,9 +14,9 @@ This project is designed for a family reward system where a child can:
 - redeem rewards on Sunday,
 - review weekly progress in a simple and visual way.
 
-The app is designed to stay lightweight and local-first:
+The app is designed to keep the UI lightweight while using persistent storage for production:
 
-- all records are stored in local CSV files,
+- production data is stored in PostgreSQL-compatible storage such as Supabase,
 - current points are recalculated from logs instead of being manually edited,
 - the UI supports Chinese, English, and German,
 - displayed labels inside tables are localized without changing the underlying stored data.
@@ -43,6 +43,13 @@ The app is designed to stay lightweight and local-first:
 - Parent dashboard
 - Localized table display for records and redemption history
 
+### Monthly Views
+
+- Monthly report
+- Monthly habit summary
+- Monthly redemption history
+- Month-level point trend review
+
 ### Reward Shop
 
 - Sunday-only redemption flow
@@ -51,8 +58,8 @@ The app is designed to stay lightweight and local-first:
 
 ### Edit Records
 
-- Edit `daily_log.csv`
-- Edit `redeem_log.csv`
+- Edit daily records
+- Edit redeem records
 - Recalculate points automatically after edits
 - Table headers and visible values follow the selected language
 
@@ -61,7 +68,8 @@ The app is designed to stay lightweight and local-first:
 - Python
 - Streamlit
 - Pandas
-- CSV-based local storage
+- SQLAlchemy
+- PostgreSQL / Supabase
 
 ## Project Structure
 
@@ -81,6 +89,8 @@ data/
   points.json        # Legacy file, no longer used as the source of truth
 ```
 
+`data/*.csv` is now used only as optional seed data for first-time database bootstrapping.
+
 ## Language Support
 
 The current UI supports:
@@ -99,11 +109,32 @@ Language switching currently covers:
 - edit-record forms
 - table headers and visible task / reward values in tables
 
-The CSV files remain language-agnostic storage. The app localizes displayed values at render time, so historical data stays compatible even after adding new languages.
+The database keeps stable internal field names. The app localizes displayed values at render time, so historical data stays compatible even after adding new languages.
+
+## Database Setup
+
+The app expects one of these settings:
+
+- `DATABASE_URL`
+- `SUPABASE_DB_URL`
+- `SUPABASE_DATABASE_URL`
+
+You can provide the value either as an environment variable or in Streamlit secrets.
+
+Example:
+
+```toml
+DATABASE_URL = "postgresql://postgres:<password>@<host>:5432/postgres"
+```
+
+On first startup:
+
+- tables are created automatically if they do not exist,
+- if the database is empty and `data/*.csv` exists, those CSV files are imported as seed data.
 
 ## Data Model
 
-### `daily_log.csv`
+### `daily_log`
 
 Fields:
 
@@ -116,7 +147,7 @@ Fields:
 - `deduction_points`
 - `net_change`
 
-### `redeem_log.csv`
+### `redeem_log`
 
 Fields:
 
@@ -127,7 +158,7 @@ Fields:
 - `points_cost`
 - `points_after_redeem`
 
-### `weekly_log.csv`
+### `weekly_log`
 
 Fields:
 
@@ -141,10 +172,10 @@ The app calculates current points in real time from:
 
 ## Data Behavior
 
-- `daily_log.csv` stores completed earning and deduction tasks as pipe-separated values.
-- `redeem_log.csv` stores the redeemed reward name and the remaining points after redemption.
-- `weekly_log.csv` stores the starting points for each logged week.
-- The UI may show translated task names or reward names, but the original CSV structure is unchanged.
+- `daily_log` stores completed earning and deduction tasks as pipe-separated values.
+- `redeem_log` stores the redeemed reward name and the remaining points after redemption.
+- `weekly_log` stores the starting points for each logged week.
+- The UI may show translated task names or reward names, but the stored field structure remains stable.
 - When records are edited, points are recalculated from the logs instead of patched manually.
 
 ## Rules
@@ -184,8 +215,9 @@ http://localhost:8501
 - The language switcher stores the selected language in `st.session_state["lang"]`.
 - Shared text rendering goes through `app/ui.py`.
 - Shared rules, task labels, and reward definitions live in `app/rules.py`.
-- Record loading, CSV normalization, and point calculation live in `app/data_manager.py`.
+- Record loading, database initialization, optional CSV seeding, and point calculation live in `app/data_manager.py`.
 - Table localization is handled in the view layer so storage stays stable while display language changes.
+- Monthly reporting is generated from the same stored logs without changing the write path.
 
 ## Development Notes
 
@@ -193,7 +225,7 @@ http://localhost:8501
 - `app/legacy_pages/` is kept only as a backup of the older multipage version.
 - The default Streamlit sidebar and top toolbar are hidden in the current UI.
 - The `Deploy` button is a built-in Streamlit header control, not part of the app's business logic.
-- The current implementation keeps CSV field names in a stable internal format and only translates what the user sees.
+- The current implementation keeps database field names in a stable internal format and only translates what the user sees.
 
 ## Verification
 
@@ -210,9 +242,11 @@ The current version includes:
 - single-page map-style home screen,
 - Chinese / English / German language switching,
 - natural German spelling with `ä / ö / ü / ß`,
+- PostgreSQL / Supabase-ready persistence,
 - real-time point calculation,
 - cross-week history retention,
-- weekly ledger support via `weekly_log.csv`,
+- weekly ledger support via `weekly_log`,
+- monthly report page,
 - reward redemption,
 - editable historical records,
 - localized table headers and table cell values for tasks and rewards.

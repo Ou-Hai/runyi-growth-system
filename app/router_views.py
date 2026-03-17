@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -15,9 +14,13 @@ try:
         get_current_week_redeem_logs,
         get_current_week_start,
         get_week_start,
+        load_daily_logs,
         load_points,
+        load_redeem_logs,
         recalculate_points,
         undo_last_action,
+        update_daily_log_by_timestamp,
+        update_redeem_log_by_timestamp,
         upsert_daily_log,
     )
     from .rules import (
@@ -41,9 +44,13 @@ except ImportError:
         get_current_week_redeem_logs,
         get_current_week_start,
         get_week_start,
+        load_daily_logs,
         load_points,
+        load_redeem_logs,
         recalculate_points,
         undo_last_action,
+        update_daily_log_by_timestamp,
+        update_redeem_log_by_timestamp,
         upsert_daily_log,
     )
     from rules import (
@@ -58,11 +65,6 @@ except ImportError:
         WEEKLY_START_POINTS,
     )
     from ui import render_hero, t
-
-BASE_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = BASE_DIR / "data"
-DAILY_LOG_FILE = DATA_DIR / "daily_log.csv"
-REDEEM_LOG_FILE = DATA_DIR / "redeem_log.csv"
 
 DAILY_COLUMN_LABELS = {
     "date": ("日期", "Date", "Datum"),
@@ -131,6 +133,10 @@ def _localize_redeem_df(df: pd.DataFrame) -> pd.DataFrame:
     if "reward_name" in display_df.columns:
         display_df["reward_name"] = display_df["reward_name"].apply(lambda value: "" if value is None or pd.isna(value) else reward_map.get(str(value), str(value)))
     return display_df.rename(columns={column: t(*labels) for column, labels in REDEEM_COLUMN_LABELS.items() if column in display_df.columns})
+
+
+def _month_label(month_value: str) -> str:
+    return datetime.strptime(month_value, "%Y-%m").strftime("%Y-%m")
 
 
 def render_task_center() -> None:
@@ -540,14 +546,116 @@ def render_parent_dashboard() -> None:
         st.dataframe(_localize_redeem_df(redeem_df), use_container_width=True, hide_index=True)
 
 
-def _load_csv(path: Path, columns: list[str]) -> pd.DataFrame:
-    if not path.exists():
-        return pd.DataFrame(columns=columns)
-    df = pd.read_csv(path)
-    for col in columns:
-        if col not in df.columns:
-            df[col] = ""
-    return df[columns]
+def render_monthly_report() -> None:
+    daily_df = pd.DataFrame(load_daily_logs(), columns=DAILY_FIELDS)
+    redeem_df = pd.DataFrame(load_redeem_logs(), columns=REDEEM_FIELDS)
+
+    render_hero(
+        t("🗓️ 月度报告", "🗓️ Monthly Report", "🗓️ Monatsbericht"),
+        t(
+            "按月份回看积分变化、习惯完成情况和奖励兑换。",
+            "Review point changes, habit completions, and reward redemptions by month.",
+            "Sieh dir Punkteveränderungen, Gewohnheiten und Einlösungen nach Monat an.",
+        ),
+        [
+            t("月度汇总", "Monthly totals", "Monatssummen"),
+            t("习惯趋势", "Habit trends", "Gewohnheitstrends"),
+            t("兑换记录", "Redemptions", "Einlösungen"),
+        ],
+    )
+
+    month_values: list[str] = []
+    if not daily_df.empty:
+        month_values.extend(pd.to_datetime(daily_df["date"]).dt.strftime("%Y-%m").tolist())
+    if not redeem_df.empty:
+        month_values.extend(pd.to_datetime(redeem_df["date"]).dt.strftime("%Y-%m").tolist())
+    month_options = sorted(set(month_values), reverse=True)
+
+    if not month_options:
+        st.info(t("还没有月度数据。", "No monthly data yet.", "Es gibt noch keine Monatsdaten."))
+        return
+
+    selected_month = st.selectbox(
+        t("选择月份", "Select Month", "Monat auswählen"),
+        month_options,
+        format_func=_month_label,
+    )
+
+    month_start = pd.Timestamp(f"{selected_month}-01")
+    month_end = month_start + pd.offsets.MonthEnd(1)
+
+    if not daily_df.empty:
+        daily_df["date"] = pd.to_datetime(daily_df["date"])
+        daily_df["earned_points"] = pd.to_numeric(daily_df["earned_points"])
+        daily_df["deduction_points"] = pd.to_numeric(daily_df["deduction_points"])
+        daily_df["net_change"] = pd.to_numeric(daily_df["net_change"])
+        month_daily = daily_df[(daily_df["date"] >= month_start) & (daily_df["date"] <= month_end)].copy()
+        month_daily["date"] = month_daily["date"].dt.strftime("%Y-%m-%d")
+    else:
+        month_daily = pd.DataFrame(columns=DAILY_FIELDS)
+
+    if not redeem_df.empty:
+        redeem_df["date"] = pd.to_datetime(redeem_df["date"])
+        redeem_df["points_cost"] = pd.to_numeric(redeem_df["points_cost"])
+        redeem_df["points_after_redeem"] = pd.to_numeric(redeem_df["points_after_redeem"])
+        month_redeem = redeem_df[(redeem_df["date"] >= month_start) & (redeem_df["date"] <= month_end)].copy()
+        month_redeem["date"] = month_redeem["date"].dt.strftime("%Y-%m-%d")
+    else:
+        month_redeem = pd.DataFrame(columns=REDEEM_FIELDS)
+
+    total_earned = int(month_daily["earned_points"].sum()) if not month_daily.empty else 0
+    total_deducted = int(month_daily["deduction_points"].sum()) if not month_daily.empty else 0
+    net_growth = int(month_daily["net_change"].sum()) if not month_daily.empty else 0
+    redeem_total = int(month_redeem["points_cost"].sum()) if not month_redeem.empty else 0
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric(t("月总加分", "Monthly Earned", "Monatliche Pluspunkte"), total_earned)
+    col2.metric(t("月总扣分", "Monthly Deducted", "Monatliche Abzüge"), total_deducted)
+    col3.metric(t("月净增长", "Monthly Net Growth", "Monatlicher Nettozuwachs"), net_growth)
+    col4.metric(t("月兑换积分", "Redeemed This Month", "Diesen Monat eingelöst"), redeem_total)
+
+    st.markdown("---")
+    left, right = st.columns([1.05, 0.95])
+    with left:
+        st.subheader(t("📊 每日净变化", "📊 Daily Net Change", "📊 Tägliche Nettoveränderung"))
+        if month_daily.empty:
+            st.info(t("这个月还没有每日记录。", "No daily records for this month yet.", "Für diesen Monat gibt es noch keine Tagesprotokolle."))
+        else:
+            st.bar_chart(month_daily[["date", "net_change"]].copy().set_index("date"))
+
+    with right:
+        st.subheader(t("📚 本月习惯统计", "📚 Habit Summary This Month", "📚 Gewohnheiten diesen Monat"))
+        habit_rows = []
+        source_series = month_daily["earned_tasks"].fillna("") if "earned_tasks" in month_daily.columns else pd.Series(dtype=str)
+        for task in EARNING_TASKS:
+            count = 0
+            for task_str in source_series:
+                count += sum(
+                    1
+                    for item in [part.strip() for part in str(task_str).split("|") if part.strip()]
+                    if item in (task["label_zh"], task["label_en"], task["label_de"])
+                )
+            habit_rows.append(
+                {
+                    t("习惯", "Habit", "Gewohnheit"): t(task["label_zh"], task["label_en"], task["label_de"]),
+                    t("次数", "Count", "Anzahl"): count,
+                }
+            )
+        st.dataframe(pd.DataFrame(habit_rows), use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+    st.subheader(t("🗂️ 本月每日记录", "🗂️ Daily Records This Month", "🗂️ Tagesprotokolle dieses Monats"))
+    if month_daily.empty:
+        st.info(t("这个月还没有每日记录。", "No daily records for this month yet.", "Für diesen Monat gibt es noch keine Tagesprotokolle."))
+    else:
+        st.dataframe(_localize_daily_df(month_daily), use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+    st.subheader(t("🧸 本月兑换记录", "🧸 Redemptions This Month", "🧸 Einlösungen dieses Monats"))
+    if month_redeem.empty:
+        st.info(t("这个月还没有兑换记录。", "No redemptions for this month yet.", "Für diesen Monat gibt es noch keine Einlösungen."))
+    else:
+        st.dataframe(_localize_redeem_df(month_redeem), use_container_width=True, hide_index=True)
 
 
 def render_edit_records() -> None:
@@ -557,7 +665,7 @@ def render_edit_records() -> None:
         [t("每日记录", "Daily logs", "Tagesprotokolle"), t("兑换记录", "Redeem logs", "Einlöseprotokolle"), t("自动重算", "Auto recalculation", "Automatische Neuberechnung")],
     )
 
-    daily_df = _load_csv(DAILY_LOG_FILE, DAILY_FIELDS)
+    daily_df = pd.DataFrame(load_daily_logs(), columns=DAILY_FIELDS)
     st.subheader(t("🗓️ 每日记录", "🗓️ Daily Log", "🗓️ Tagesprotokoll"))
     if daily_df.empty:
         st.info(t("还没有每日记录。", "No daily log yet.", "Es gibt noch kein Tagesprotokoll."))
@@ -580,20 +688,20 @@ def render_edit_records() -> None:
             save_daily = st.form_submit_button(t("保存每日记录", "Save Daily Log", "Tagesprotokoll speichern"))
 
         if save_daily:
-            daily_df.at[row_idx, "date"] = new_date.strip()
-            daily_df.at[row_idx, "week_start_date"] = get_week_start(new_date.strip())
-            daily_df.at[row_idx, "earned_tasks"] = new_earned_tasks.strip()
-            daily_df.at[row_idx, "deduction_tasks"] = new_deduction_tasks.strip()
-            daily_df.at[row_idx, "earned_points"] = int(new_earned_points)
-            daily_df.at[row_idx, "deduction_points"] = int(new_deduction_points)
-            daily_df.at[row_idx, "net_change"] = int(new_earned_points) - int(new_deduction_points)
-            daily_df.sort_values(by="timestamp").to_csv(DAILY_LOG_FILE, index=False)
+            update_daily_log_by_timestamp(
+                str(row["timestamp"]),
+                row_date=new_date.strip(),
+                earned_tasks=new_earned_tasks.strip(),
+                deduction_tasks=new_deduction_tasks.strip(),
+                earned_points=int(new_earned_points),
+                deduction_points=int(new_deduction_points),
+            )
             recalculate_points()
             st.success(t("每日记录已更新。", "Daily log updated successfully.", "Tagesprotokoll erfolgreich aktualisiert."))
             st.rerun()
 
     st.markdown("---")
-    redeem_df = _load_csv(REDEEM_LOG_FILE, REDEEM_FIELDS)
+    redeem_df = pd.DataFrame(load_redeem_logs(), columns=REDEEM_FIELDS)
     st.subheader(t("🧸 兑换记录", "🧸 Redeem Log", "🧸 Einlöseprotokoll"))
     if redeem_df.empty:
         st.info(t("还没有兑换记录。", "No redeem log records found.", "Es wurden noch keine Einlöseprotokolle gefunden."))
@@ -615,12 +723,13 @@ def render_edit_records() -> None:
             save_redeem = st.form_submit_button(t("保存兑换记录", "Save Redeem Log", "Einlöseprotokoll speichern"))
 
         if save_redeem:
-            redeem_df.at[redeem_row_idx, "date"] = new_redeem_date.strip()
-            redeem_df.at[redeem_row_idx, "week_start_date"] = get_week_start(new_redeem_date.strip())
-            redeem_df.at[redeem_row_idx, "reward_name"] = new_reward_name.strip()
-            redeem_df.at[redeem_row_idx, "points_cost"] = int(new_points_cost)
-            redeem_df.at[redeem_row_idx, "points_after_redeem"] = int(new_points_after_redeem)
-            redeem_df.sort_values(by="timestamp").to_csv(REDEEM_LOG_FILE, index=False)
+            update_redeem_log_by_timestamp(
+                str(redeem_row["timestamp"]),
+                row_date=new_redeem_date.strip(),
+                reward_name=new_reward_name.strip(),
+                points_cost=int(new_points_cost),
+                points_after_redeem=int(new_points_after_redeem),
+            )
             recalculate_points()
             st.success(t("兑换记录已更新。", "Redeem log updated successfully.", "Einlöseprotokoll erfolgreich aktualisiert."))
             st.rerun()
