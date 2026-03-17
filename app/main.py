@@ -1,31 +1,17 @@
 import streamlit as st
 
-try:
-    from .data_manager import get_current_week_start, load_points
-    from .router_views import (
-        render_edit_records,
-        render_growth_report,
-        render_monthly_report,
-        render_parent_dashboard,
-        render_reward_shop,
-        render_task_center,
-        render_weekly_summary,
-    )
-    from .rules import APP_TITLE_DE, APP_TITLE_EN, APP_TITLE_ZH, CHILD_NAME_DE, CHILD_NAME_EN, CHILD_NAME_ZH
-    from .ui import init_sidebar, inject_styles, render_hero, render_home_scene, t
-except ImportError:
-    from data_manager import get_current_week_start, load_points
-    from router_views import (
-        render_edit_records,
-        render_growth_report,
-        render_monthly_report,
-        render_parent_dashboard,
-        render_reward_shop,
-        render_task_center,
-        render_weekly_summary,
-    )
-    from rules import APP_TITLE_DE, APP_TITLE_EN, APP_TITLE_ZH, CHILD_NAME_DE, CHILD_NAME_EN, CHILD_NAME_ZH
-    from ui import init_sidebar, inject_styles, render_hero, render_home_scene, t
+from data_manager import get_current_week_start, load_points
+from router_views import (
+    render_edit_records,
+    render_growth_report,
+    render_monthly_report,
+    render_parent_dashboard,
+    render_reward_shop,
+    render_task_center,
+    render_weekly_summary,
+)
+from rules import APP_TITLE_DE, APP_TITLE_EN, APP_TITLE_ZH, CHILD_NAME_DE, CHILD_NAME_EN, CHILD_NAME_ZH
+from ui import init_sidebar, inject_styles, render_hero, render_home_scene, t
 
 ROUTES = {
     "home": {"emoji": "🗺️", "zh": "糖果地图", "en": "Candy Map", "de": "Bonbonkarte", "render": None},

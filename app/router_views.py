@@ -5,66 +5,35 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-try:
-    from .data_manager import (
-        DAILY_FIELDS,
-        REDEEM_FIELDS,
-        append_redeem_log,
-        get_current_week_daily_logs,
-        get_current_week_redeem_logs,
-        get_current_week_start,
-        get_week_start,
-        load_daily_logs,
-        load_points,
-        load_redeem_logs,
-        recalculate_points,
-        undo_last_action,
-        update_daily_log_by_timestamp,
-        update_redeem_log_by_timestamp,
-        upsert_daily_log,
-    )
-    from .rules import (
-        CHILD_NAME_DE,
-        CHILD_NAME_EN,
-        CHILD_NAME_ZH,
-        DEDUCTION_TASKS,
-        EARNING_TASKS,
-        MAX_DAILY_DEDUCT,
-        MAX_DAILY_EARN,
-        REWARD_TIERS,
-        WEEKLY_START_POINTS,
-    )
-    from .ui import render_hero, t
-except ImportError:
-    from data_manager import (
-        DAILY_FIELDS,
-        REDEEM_FIELDS,
-        append_redeem_log,
-        get_current_week_daily_logs,
-        get_current_week_redeem_logs,
-        get_current_week_start,
-        get_week_start,
-        load_daily_logs,
-        load_points,
-        load_redeem_logs,
-        recalculate_points,
-        undo_last_action,
-        update_daily_log_by_timestamp,
-        update_redeem_log_by_timestamp,
-        upsert_daily_log,
-    )
-    from rules import (
-        CHILD_NAME_DE,
-        CHILD_NAME_EN,
-        CHILD_NAME_ZH,
-        DEDUCTION_TASKS,
-        EARNING_TASKS,
-        MAX_DAILY_DEDUCT,
-        MAX_DAILY_EARN,
-        REWARD_TIERS,
-        WEEKLY_START_POINTS,
-    )
-    from ui import render_hero, t
+from data_manager import (
+    DAILY_FIELDS,
+    REDEEM_FIELDS,
+    append_redeem_log,
+    get_current_week_daily_logs,
+    get_current_week_redeem_logs,
+    get_current_week_start,
+    get_week_start,
+    load_daily_logs,
+    load_points,
+    load_redeem_logs,
+    recalculate_points,
+    undo_last_action,
+    update_daily_log_by_timestamp,
+    update_redeem_log_by_timestamp,
+    upsert_daily_log,
+)
+from rules import (
+    CHILD_NAME_DE,
+    CHILD_NAME_EN,
+    CHILD_NAME_ZH,
+    DEDUCTION_TASKS,
+    EARNING_TASKS,
+    MAX_DAILY_DEDUCT,
+    MAX_DAILY_EARN,
+    REWARD_TIERS,
+    WEEKLY_START_POINTS,
+)
+from ui import render_hero, t
 
 DAILY_COLUMN_LABELS = {
     "date": ("日期", "Date", "Datum"),
