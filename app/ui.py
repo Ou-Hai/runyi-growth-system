@@ -1,0 +1,347 @@
+from __future__ import annotations
+
+import streamlit as st
+
+
+LANG_OPTIONS = {
+    "中文": "zh",
+    "English": "en",
+}
+
+
+def t(zh: str, en: str) -> str:
+    return zh if st.session_state.get("lang", "zh") == "zh" else en
+
+
+def init_sidebar(current_route: str = "home") -> str:
+    if "lang" not in st.session_state:
+        st.session_state["lang"] = "zh"
+
+    top_left, top_mid, top_right = st.columns([0.9, 1.4, 0.7])
+    with top_left:
+        if current_route != "home":
+            st.markdown('<div class="home-chip">', unsafe_allow_html=True)
+            if st.button(t("🏠 返回主页", "🏠 Back Home"), key="go_home_top", use_container_width=True):
+                st.session_state["route"] = "home"
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.write("")
+    with top_mid:
+        current_label = "中文" if st.session_state["lang"] == "zh" else "English"
+        choice = st.segmented_control(
+            label=t("语言", "Language"),
+            options=list(LANG_OPTIONS.keys()),
+            default=current_label,
+            key="lang_segmented_control",
+            label_visibility="collapsed",
+        )
+        if choice:
+            st.session_state["lang"] = LANG_OPTIONS[choice]
+    with top_right:
+        st.write("")
+
+    return st.session_state["lang"]
+
+
+def inject_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+
+        :root {
+            --ink: #24324a;
+            --peach: #ff9b72;
+            --sun: #ffd86b;
+            --mint: #a6e3c4;
+            --sky: #b8d8ff;
+            --berry: #ff9cc0;
+            --cream: #fffaf1;
+            --card: rgba(255, 255, 255, 0.9);
+            --line: rgba(36, 50, 74, 0.09);
+        }
+
+        html, body, [class*="css"] {
+            font-family: "Noto Sans SC", "Baloo 2", sans-serif;
+            color: var(--ink);
+        }
+
+        .stApp {
+            background:
+                radial-gradient(circle at 15% 20%, rgba(255, 216, 107, 0.26), transparent 22%),
+                radial-gradient(circle at 85% 18%, rgba(255, 156, 192, 0.18), transparent 18%),
+                radial-gradient(circle at 18% 84%, rgba(166, 227, 196, 0.24), transparent 22%),
+                radial-gradient(circle at 82% 82%, rgba(184, 216, 255, 0.22), transparent 20%),
+                linear-gradient(180deg, #fff7ec 0%, #fffdfa 54%, #f7fbff 100%);
+        }
+
+        .block-container {
+            padding-top: 1.2rem;
+            padding-bottom: 2rem;
+        }
+
+        [data-testid="stSidebar"],
+        [data-testid="stSidebarNav"],
+        [data-testid="collapsedControl"],
+        [data-testid="stHeader"],
+        [data-testid="stToolbar"] {
+            display: none !important;
+        }
+
+        [data-testid="stMetric"] {
+            background: rgba(255,255,255,0.86);
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            padding: 16px 18px;
+            box-shadow: 0 14px 28px rgba(255, 155, 114, 0.1);
+        }
+
+        .hero-card {
+            position: relative;
+            overflow: hidden;
+            padding: 30px 30px 28px;
+            border-radius: 34px;
+            background:
+                radial-gradient(circle at top right, rgba(255,255,255,0.26), transparent 24%),
+                radial-gradient(circle at left bottom, rgba(255,255,255,0.16), transparent 20%),
+                linear-gradient(135deg, rgba(255, 155, 114, 0.95), rgba(255, 216, 107, 0.92));
+            color: white;
+            box-shadow: 0 24px 48px rgba(255, 155, 114, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .hero-card.home-hero {
+            background:
+                radial-gradient(circle at 18% 24%, rgba(255,255,255,0.72), transparent 16%),
+                radial-gradient(circle at 82% 22%, rgba(184, 216, 255, 0.42), transparent 18%),
+                radial-gradient(circle at 18% 82%, rgba(166, 227, 196, 0.36), transparent 18%),
+                linear-gradient(180deg, rgba(255,255,255,0.84), rgba(249,250,255,0.84));
+            color: var(--ink);
+            box-shadow: 0 18px 42px rgba(184, 216, 255, 0.16);
+            border: 1px solid rgba(36, 50, 74, 0.06);
+        }
+
+        .hero-card.home-hero h1,
+        .hero-card.home-hero h2,
+        .hero-card.home-hero h3,
+        .hero-card.home-hero p {
+            color: var(--ink);
+        }
+
+        .hero-card.home-hero::before {
+            content: "☁️";
+            animation: floatCloud 5s ease-in-out infinite;
+        }
+
+        .hero-card.home-hero::after {
+            content: "✨";
+            right: 40px;
+            bottom: 22px;
+            animation: twinkle 2.4s ease-in-out infinite;
+        }
+
+        .hero-card::before {
+            content: "☁️";
+            position: absolute;
+            right: 28px;
+            top: 18px;
+            font-size: 2.1rem;
+            opacity: 0.92;
+        }
+
+        .hero-card::after {
+            content: "⭐";
+            position: absolute;
+            right: 72px;
+            bottom: 18px;
+            font-size: 1.6rem;
+            opacity: 0.95;
+        }
+
+        .hero-card h1, .hero-card h2, .hero-card h3, .hero-card p {
+            color: white;
+            margin: 0;
+        }
+
+        .soft-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            padding: 18px 20px;
+            box-shadow: 0 12px 24px rgba(184, 216, 255, 0.12);
+            margin-bottom: 14px;
+        }
+
+        .play-card {
+            min-height: 180px;
+            background:
+                radial-gradient(circle at top right, rgba(255,255,255,0.45), transparent 26%),
+                linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,242,0.99));
+            border: 1px solid rgba(36, 50, 74, 0.08);
+            border-radius: 26px;
+            padding: 20px 20px 18px;
+            box-shadow: 0 16px 34px rgba(36, 50, 74, 0.08);
+            margin-bottom: 14px;
+        }
+
+        .celebration-card {
+            border-radius: 24px;
+            padding: 20px 22px;
+            background: linear-gradient(135deg, rgba(184, 216, 255, 0.25), rgba(166, 227, 196, 0.28));
+            border: 1px dashed rgba(36, 50, 74, 0.14);
+        }
+
+        .pill-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .pill {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.24);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            font-size: 0.95rem;
+        }
+
+        .map-panel {
+            background:
+                radial-gradient(circle at top left, rgba(255,255,255,0.52), transparent 20%),
+                linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0.18));
+            border: 1px dashed rgba(36, 50, 74, 0.12);
+            border-radius: 30px;
+            padding: 22px 22px 14px;
+            margin-top: 6px;
+        }
+
+        .map-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            color: var(--ink);
+        }
+
+        .stButton > button {
+            border-radius: 999px;
+            border: none;
+            background: linear-gradient(135deg, #ff8f67, #ffb574);
+            color: white;
+            font-weight: 700;
+            padding: 0.56rem 1rem;
+            box-shadow: 0 10px 18px rgba(255, 143, 103, 0.16);
+        }
+
+        .stButton > button:hover {
+            filter: brightness(1.03);
+            transform: translateY(-1px);
+        }
+
+        .home-chip button {
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,250,242,0.96));
+            color: var(--ink);
+            border: 1px solid rgba(36, 50, 74, 0.08);
+            box-shadow: 0 8px 18px rgba(36, 50, 74, 0.08);
+        }
+
+        .home-chip button:hover {
+            box-shadow: 0 12px 22px rgba(184, 216, 255, 0.16);
+        }
+
+        .map-card button {
+            width: 100%;
+            min-height: 214px;
+            border-radius: 28px;
+            border: 1px solid rgba(36, 50, 74, 0.08);
+            background:
+                radial-gradient(circle at top right, rgba(255, 216, 107, 0.2), transparent 25%),
+                radial-gradient(circle at left bottom, rgba(184, 216, 255, 0.18), transparent 22%),
+                linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,242,0.99));
+            color: var(--ink);
+            box-shadow: 0 18px 34px rgba(36, 50, 74, 0.08);
+            text-align: left;
+            justify-content: flex-start;
+            white-space: break-spaces;
+            padding: 22px 22px 18px;
+        }
+
+        .map-card button p {
+            color: var(--ink);
+            font-size: 1.18rem;
+            line-height: 1.65;
+            font-weight: 700;
+            white-space: break-spaces;
+        }
+
+        .home-scene {
+            position: relative;
+            min-height: 132px;
+            margin: 6px 0 14px 0;
+        }
+
+        .float-item {
+            position: absolute;
+            font-size: 2rem;
+            filter: drop-shadow(0 8px 14px rgba(36, 50, 74, 0.08));
+            animation: bob 4.8s ease-in-out infinite;
+        }
+
+        .float-a { left: 8%; top: 10px; animation-delay: 0s; }
+        .float-b { left: 34%; top: 54px; animation-delay: 0.8s; }
+        .float-c { left: 58%; top: 18px; animation-delay: 1.2s; }
+        .float-d { left: 80%; top: 60px; animation-delay: 1.8s; }
+
+        @keyframes bob {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+        }
+
+        @keyframes floatCloud {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.75; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.15); }
+        }
+
+        div[data-testid="stProgress"] > div > div {
+            background: linear-gradient(90deg, #ff8f67 0%, #ffd86b 52%, #a6e3c4 100%);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_hero(title: str, subtitle: str, pills: list[str] | None = None, variant: str = "default") -> None:
+    pills = pills or []
+    pills_html = "".join(f'<span class="pill">{item}</span>' for item in pills)
+    hero_class = "hero-card home-hero" if variant == "home" else "hero-card"
+    st.markdown(
+        f"""
+        <div class="{hero_class}">
+            <h2>{title}</h2>
+            <p style="margin-top:12px;font-size:1.05rem;opacity:0.97;">{subtitle}</p>
+            <div class="pill-row">{pills_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_home_scene() -> None:
+    st.markdown(
+        """
+        <div class="home-scene">
+            <div class="float-item float-a">☁️</div>
+            <div class="float-item float-b">🍭</div>
+            <div class="float-item float-c">⭐</div>
+            <div class="float-item float-d">🧸</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
