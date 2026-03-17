@@ -6,30 +6,56 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from data_manager import (
-    DAILY_FIELDS,
-    REDEEM_FIELDS,
-    get_current_week_daily_logs,
-    get_current_week_redeem_logs,
-    get_current_week_start,
-    get_week_start,
-    load_points,
-    recalculate_points,
-    undo_last_action,
-    upsert_daily_log,
-    append_redeem_log,
-)
-from rules import (
-    CHILD_NAME_EN,
-    CHILD_NAME_ZH,
-    DEDUCTION_TASKS,
-    EARNING_TASKS,
-    MAX_DAILY_DEDUCT,
-    MAX_DAILY_EARN,
-    REWARD_TIERS,
-    WEEKLY_START_POINTS,
-)
-from ui import render_hero, t
+try:
+    from .data_manager import (
+        DAILY_FIELDS,
+        REDEEM_FIELDS,
+        append_redeem_log,
+        get_current_week_daily_logs,
+        get_current_week_redeem_logs,
+        get_current_week_start,
+        get_week_start,
+        load_points,
+        recalculate_points,
+        undo_last_action,
+        upsert_daily_log,
+    )
+    from .rules import (
+        CHILD_NAME_EN,
+        CHILD_NAME_ZH,
+        DEDUCTION_TASKS,
+        EARNING_TASKS,
+        MAX_DAILY_DEDUCT,
+        MAX_DAILY_EARN,
+        REWARD_TIERS,
+        WEEKLY_START_POINTS,
+    )
+    from .ui import render_hero, t
+except ImportError:
+    from data_manager import (
+        DAILY_FIELDS,
+        REDEEM_FIELDS,
+        append_redeem_log,
+        get_current_week_daily_logs,
+        get_current_week_redeem_logs,
+        get_current_week_start,
+        get_week_start,
+        load_points,
+        recalculate_points,
+        undo_last_action,
+        upsert_daily_log,
+    )
+    from rules import (
+        CHILD_NAME_EN,
+        CHILD_NAME_ZH,
+        DEDUCTION_TASKS,
+        EARNING_TASKS,
+        MAX_DAILY_DEDUCT,
+        MAX_DAILY_EARN,
+        REWARD_TIERS,
+        WEEKLY_START_POINTS,
+    )
+    from ui import render_hero, t
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"

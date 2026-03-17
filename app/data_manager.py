@@ -6,7 +6,10 @@ from pathlib import Path
 
 import streamlit as st
 
-from rules import WEEKLY_START_POINTS
+try:
+    from .rules import WEEKLY_START_POINTS
+except ImportError:
+    from rules import WEEKLY_START_POINTS
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
