@@ -203,6 +203,9 @@ def _get_database_url() -> str:
     )
 
 
+LOAD_CACHE_TTL_SECONDS = 3
+
+
 @lru_cache(maxsize=1)
 def get_engine() -> Engine:
     database_url = _get_database_url()
@@ -296,16 +299,19 @@ def _fetch_rows(table: Table, fieldnames: list[str], order_columns: list[Any]) -
     return [dict(row) for row in rows]
 
 
+@st.cache_data(show_spinner=False, ttl=LOAD_CACHE_TTL_SECONDS)
 def load_daily_logs() -> list[dict[str, Any]]:
     rows = _fetch_rows(daily_log_table, DAILY_FIELDS, [daily_log_table.c.timestamp, daily_log_table.c.date])
     return [_normalize_daily_row(row) for row in rows]
 
 
+@st.cache_data(show_spinner=False, ttl=LOAD_CACHE_TTL_SECONDS)
 def load_redeem_logs() -> list[dict[str, Any]]:
     rows = _fetch_rows(redeem_log_table, REDEEM_FIELDS, [redeem_log_table.c.timestamp, redeem_log_table.c.date])
     return [_normalize_redeem_row(row) for row in rows]
 
 
+@st.cache_data(show_spinner=False, ttl=LOAD_CACHE_TTL_SECONDS)
 def load_week_logs() -> list[dict[str, Any]]:
     rows = _fetch_rows(weekly_log_table, WEEK_FIELDS, [weekly_log_table.c.week_start_date])
     return [_normalize_week_row(row) for row in rows]

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import streamlit as st
 
 from data_manager import get_current_week_start, load_points
@@ -41,6 +43,19 @@ init_sidebar(st.session_state["route"])
 def open_route(route: str) -> None:
     st.session_state["route"] = route
     st.rerun()
+
+
+def _format_week_start_metric(value: str) -> str:
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+
+    return t(
+        parsed.strftime("%m-%d"),
+        parsed.strftime("%b %d"),
+        parsed.strftime("%d.%m."),
+    )
 
 
 def render_map_card(
@@ -101,7 +116,7 @@ if route == "home":
     with info_right:
         col1, col2 = st.columns(2)
         col1.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
-        col2.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), current_week_start)
+        col2.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), _format_week_start_metric(current_week_start))
 
     st.markdown(
         f"""
