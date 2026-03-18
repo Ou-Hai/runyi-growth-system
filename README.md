@@ -1,6 +1,6 @@
 # Yoyo Growth Points System
 
-A Streamlit-based family growth points app for tracking daily habits, point changes, reward redemption, and weekly progress.
+A Streamlit-based family growth points app for tracking daily habits, point changes, reward redemption, weekly progress, and monthly review.
 
 The current version uses a single-page routing pattern. The home screen works like a clickable adventure map and no longer relies on Streamlit's default multipage sidebar navigation.
 
@@ -19,15 +19,17 @@ The app is designed to keep the UI lightweight while using persistent storage fo
 - production data is stored in PostgreSQL-compatible storage such as Supabase,
 - current points are recalculated from logs instead of being manually edited,
 - the UI supports Chinese, English, and German,
-- displayed labels inside tables are localized without changing the underlying stored data.
+- displayed labels inside tables are localized without changing the underlying stored data,
+- the UI includes a mobile-first responsive layer while still keeping desktop layouts usable.
 
 ## Features
 
 ### Home Map
 
 - Illustrated home screen
-- Six fully clickable entry cards
+- Mobile-friendly clickable entry cards
 - Single-page route switching
+- Reordered navigation flow for smaller screens
 
 ### Task Center
 
@@ -42,6 +44,7 @@ The app is designed to keep the UI lightweight while using persistent storage fo
 - Weekly growth report
 - Parent dashboard
 - Localized table display for records and redemption history
+- Card view plus table view for daily and redemption records
 
 ### Monthly Views
 
@@ -49,12 +52,14 @@ The app is designed to keep the UI lightweight while using persistent storage fo
 - Monthly habit summary
 - Monthly redemption history
 - Month-level point trend review
+- Card view plus table view for monthly records
 
 ### Reward Shop
 
 - Sunday-only redemption flow
 - Reward tiers
 - Redemption history logging
+- Mobile-first reward ordering and clearer redeem state display
 
 ### Edit Records
 
@@ -62,6 +67,7 @@ The app is designed to keep the UI lightweight while using persistent storage fo
 - Edit redeem records
 - Recalculate points automatically after edits
 - Table headers and visible values follow the selected language
+- Card view plus table view for browsing history before editing
 
 ## Tech Stack
 
@@ -70,6 +76,7 @@ The app is designed to keep the UI lightweight while using persistent storage fo
 - Pandas
 - SQLAlchemy
 - PostgreSQL / Supabase
+- `uv` for local dependency management
 
 ## Project Structure
 
@@ -90,6 +97,17 @@ data/
 ```
 
 `data/*.csv` is now used only as optional seed data for first-time database bootstrapping.
+
+## Mobile And Desktop Behavior
+
+The current UI is designed to work on both desktop and phone screens:
+
+- desktop keeps the wider adventure-map layout and full tables,
+- smaller screens automatically tighten spacing and stack columns,
+- record-heavy pages offer both a card view and a full table view,
+- the reward shop and home navigation are ordered more clearly for top-to-bottom phone use.
+
+This is still a Streamlit app, so it behaves like a responsive web app rather than a fully native mobile app.
 
 ## Language Support
 
@@ -127,10 +145,23 @@ Example:
 DATABASE_URL = "postgresql://postgres:<password>@<host>:5432/postgres"
 ```
 
+For Supabase on Streamlit Cloud, the production setup used in this project is typically:
+
+```toml
+DATABASE_URL = "postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres?sslmode=require"
+```
+
+Notes:
+
+- using the Supabase session pooler is generally more reliable than a direct connection on Streamlit Cloud,
+- if your password contains reserved URL characters such as `@`, it must be URL-encoded,
+- Streamlit Cloud in this project reads dependencies successfully through `uv.lock`.
+
 On first startup:
 
 - tables are created automatically if they do not exist,
 - if the database is empty and `data/*.csv` exists, those CSV files are imported as seed data.
+- `weekly_log` is auto-initialized for the current week if needed.
 
 ## Data Model
 
@@ -177,6 +208,7 @@ The app calculates current points in real time from:
 - `weekly_log` stores the starting points for each logged week.
 - The UI may show translated task names or reward names, but the stored field structure remains stable.
 - When records are edited, points are recalculated from the logs instead of patched manually.
+- current points are derived from logs, not stored as a standalone mutable number.
 
 ## Rules
 
@@ -186,6 +218,8 @@ The default rules are defined in `app/rules.py`:
 - Maximum daily earned points: `3`
 - Maximum daily deductions: `2`
 - Reward tiers: `12 / 30 / 38`
+
+Each logged week starts with `2` points through `weekly_log`. The system adds that weekly baseline automatically when a new week is first touched by the app.
 
 ## Run Locally
 
@@ -218,6 +252,7 @@ http://localhost:8501
 - Record loading, database initialization, optional CSV seeding, and point calculation live in `app/data_manager.py`.
 - Table localization is handled in the view layer so storage stays stable while display language changes.
 - Monthly reporting is generated from the same stored logs without changing the write path.
+- Mobile-friendly behavior is mostly implemented through shared CSS in `app/ui.py` plus card/table dual presentation in `app/router_views.py`.
 
 ## Development Notes
 
@@ -226,6 +261,8 @@ http://localhost:8501
 - The default Streamlit sidebar and top toolbar are hidden in the current UI.
 - The `Deploy` button is a built-in Streamlit header control, not part of the app's business logic.
 - The current implementation keeps database field names in a stable internal format and only translates what the user sees.
+- Database-backed reads use a short cache window to reduce repeated rerun latency while still refreshing quickly after edits.
+- Manual edits made directly in Supabase may take a few seconds to appear because of the short read cache.
 
 ## Verification
 
@@ -243,13 +280,18 @@ The current version includes:
 - Chinese / English / German language switching,
 - natural German spelling with `ä / ö / ü / ß`,
 - PostgreSQL / Supabase-ready persistence,
+- Supabase session-pooler compatible deployment,
 - real-time point calculation,
 - cross-week history retention,
 - weekly ledger support via `weekly_log`,
 - monthly report page,
 - reward redemption,
 - editable historical records,
-- localized table headers and table cell values for tasks and rewards.
+- localized table headers and table cell values for tasks and rewards,
+- responsive mobile-friendly layout updates,
+- card view plus table view on record-heavy pages,
+- shortened home-screen week-start metric for narrow layouts,
+- shorter rerun latency via lightweight read caching.
 
 ## Future Ideas
 
