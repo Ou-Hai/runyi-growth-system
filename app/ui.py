@@ -89,6 +89,7 @@ def inject_styles() -> None:
         .block-container {
             padding-top: 1.2rem;
             padding-bottom: 2rem;
+            max-width: 1180px;
         }
 
         [data-testid="stSidebar"],
@@ -193,6 +194,63 @@ def inject_styles() -> None:
             padding: 20px 20px 18px;
             box-shadow: 0 16px 34px rgba(36, 50, 74, 0.08);
             margin-bottom: 14px;
+        }
+
+        .record-card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,242,0.98));
+            border: 1px solid rgba(36, 50, 74, 0.08);
+            border-radius: 22px;
+            padding: 16px 18px;
+            box-shadow: 0 10px 22px rgba(36, 50, 74, 0.08);
+            margin-bottom: 12px;
+        }
+
+        .record-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .record-card-title {
+            font-size: 1.02rem;
+            font-weight: 700;
+        }
+
+        .record-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 0.86rem;
+            font-weight: 700;
+            background: rgba(255, 216, 107, 0.2);
+            color: var(--ink);
+        }
+
+        .record-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px 14px;
+        }
+
+        .record-cell-label {
+            font-size: 0.82rem;
+            opacity: 0.72;
+            margin-bottom: 3px;
+        }
+
+        .record-cell-value {
+            font-size: 0.96rem;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .mobile-note {
+            margin: 8px 0 12px 0;
+            font-size: 0.9rem;
+            opacity: 0.72;
         }
 
         .celebration-card {
@@ -320,6 +378,93 @@ def inject_styles() -> None:
 
         div[data-testid="stProgress"] > div > div {
             background: linear-gradient(90deg, #ff8f67 0%, #ffd86b 52%, #a6e3c4 100%);
+        }
+
+        @media (max-width: 900px) {
+            .block-container {
+                padding-top: 0.9rem;
+                padding-left: 0.9rem;
+                padding-right: 0.9rem;
+                padding-bottom: 1.4rem;
+            }
+
+            .hero-card {
+                padding: 22px 20px 20px;
+                border-radius: 26px;
+            }
+
+            .hero-card::before {
+                right: 18px;
+                top: 14px;
+                font-size: 1.7rem;
+            }
+
+            .hero-card::after {
+                right: 50px;
+                bottom: 12px;
+                font-size: 1.2rem;
+            }
+
+            .map-panel {
+                padding: 18px 16px 8px;
+                border-radius: 24px;
+            }
+
+            .map-card button {
+                min-height: 148px;
+                border-radius: 22px;
+                padding: 18px 16px 14px;
+            }
+
+            .map-card button p {
+                font-size: 1rem;
+                line-height: 1.45;
+            }
+
+            .play-card,
+            .soft-card,
+            .celebration-card,
+            [data-testid="stMetric"] {
+                border-radius: 20px;
+                padding: 14px 16px;
+            }
+
+            .pill-row {
+                gap: 8px;
+            }
+
+            .pill {
+                font-size: 0.84rem;
+                padding: 7px 10px;
+            }
+
+            .home-scene {
+                min-height: 92px;
+                margin-bottom: 10px;
+            }
+
+            .float-item {
+                font-size: 1.5rem;
+            }
+
+            .record-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            [data-testid="stHorizontalBlock"] {
+                gap: 0.75rem;
+            }
+
+            [data-testid="column"] {
+                width: 100% !important;
+                flex: 1 1 100% !important;
+            }
+
+            .stButton > button {
+                min-height: 2.9rem;
+                font-size: 1rem;
+            }
         }
         </style>
         """,

@@ -108,6 +108,65 @@ def _month_label(month_value: str) -> str:
     return datetime.strptime(month_value, "%Y-%m").strftime("%Y-%m")
 
 
+def _format_record_value(value: object) -> str:
+    if value is None or pd.isna(value):
+        return t("无", "None", "Keine")
+    text = str(value).strip()
+    if not text or text.upper() == "EMPTY":
+        return t("无", "None", "Keine")
+    return text
+
+
+def _render_daily_log_cards(df: pd.DataFrame) -> None:
+    localized = _localize_daily_df(df)
+    date_label = t(*DAILY_COLUMN_LABELS["date"])
+    net_label = t(*DAILY_COLUMN_LABELS["net_change"])
+    for row in localized.to_dict("records"):
+        st.markdown(
+            f"""
+            <div class="record-card">
+                <div class="record-card-header">
+                    <div class="record-card-title">{_format_record_value(row.get(date_label))}</div>
+                    <div class="record-pill">{net_label}: {_format_record_value(row.get(net_label))}</div>
+                </div>
+                <div class="record-grid">
+                    <div><div class="record-cell-label">{t(*DAILY_COLUMN_LABELS["earned_tasks"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*DAILY_COLUMN_LABELS["earned_tasks"])))}</div></div>
+                    <div><div class="record-cell-label">{t(*DAILY_COLUMN_LABELS["deduction_tasks"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*DAILY_COLUMN_LABELS["deduction_tasks"])))}</div></div>
+                    <div><div class="record-cell-label">{t(*DAILY_COLUMN_LABELS["earned_points"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*DAILY_COLUMN_LABELS["earned_points"])))}</div></div>
+                    <div><div class="record-cell-label">{t(*DAILY_COLUMN_LABELS["deduction_points"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*DAILY_COLUMN_LABELS["deduction_points"])))}</div></div>
+                    <div><div class="record-cell-label">{t(*DAILY_COLUMN_LABELS["week_start_date"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*DAILY_COLUMN_LABELS["week_start_date"])))}</div></div>
+                    <div><div class="record-cell-label">{t(*DAILY_COLUMN_LABELS["timestamp"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*DAILY_COLUMN_LABELS["timestamp"])))}</div></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def _render_redeem_log_cards(df: pd.DataFrame) -> None:
+    localized = _localize_redeem_df(df)
+    date_label = t(*REDEEM_COLUMN_LABELS["date"])
+    reward_label = t(*REDEEM_COLUMN_LABELS["reward_name"])
+    for row in localized.to_dict("records"):
+        st.markdown(
+            f"""
+            <div class="record-card">
+                <div class="record-card-header">
+                    <div class="record-card-title">{_format_record_value(row.get(date_label))}</div>
+                    <div class="record-pill">{_format_record_value(row.get(reward_label))}</div>
+                </div>
+                <div class="record-grid">
+                    <div><div class="record-cell-label">{reward_label}</div><div class="record-cell-value">{_format_record_value(row.get(reward_label))}</div></div>
+                    <div><div class="record-cell-label">{t(*REDEEM_COLUMN_LABELS["points_cost"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*REDEEM_COLUMN_LABELS["points_cost"])))}</div></div>
+                    <div><div class="record-cell-label">{t(*REDEEM_COLUMN_LABELS["points_after_redeem"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*REDEEM_COLUMN_LABELS["points_after_redeem"])))}</div></div>
+                    <div><div class="record-cell-label">{t(*REDEEM_COLUMN_LABELS["timestamp"])}</div><div class="record-cell-value">{_format_record_value(row.get(t(*REDEEM_COLUMN_LABELS["timestamp"])))}</div></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 def render_task_center() -> None:
     current_points = load_points()
 
@@ -268,7 +327,12 @@ def render_weekly_summary() -> None:
         df["earned_points"] = pd.to_numeric(df["earned_points"])
         df["deduction_points"] = pd.to_numeric(df["deduction_points"])
         df["net_change"] = pd.to_numeric(df["net_change"])
-        st.dataframe(_localize_daily_df(df), use_container_width=True, hide_index=True)
+        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
+        with card_tab:
+            st.caption(t("手机上更适合看卡片视图。", "Card view is easier to use on phones.", "Die Kartenansicht ist auf dem Handy leichter zu nutzen."))
+            _render_daily_log_cards(df)
+        with table_tab:
+            st.dataframe(_localize_daily_df(df), use_container_width=True, hide_index=True)
         st.line_chart(df[["date", "net_change"]].copy().set_index("date"))
 
     st.markdown("---")
@@ -279,7 +343,11 @@ def render_weekly_summary() -> None:
         redeem_df = pd.DataFrame(redeem_logs)
         redeem_df["points_cost"] = pd.to_numeric(redeem_df["points_cost"])
         redeem_df["points_after_redeem"] = pd.to_numeric(redeem_df["points_after_redeem"])
-        st.dataframe(_localize_redeem_df(redeem_df), use_container_width=True, hide_index=True)
+        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
+        with card_tab:
+            _render_redeem_log_cards(redeem_df)
+        with table_tab:
+            st.dataframe(_localize_redeem_df(redeem_df), use_container_width=True, hide_index=True)
 
 
 def render_reward_shop() -> None:
@@ -292,29 +360,53 @@ def render_reward_shop() -> None:
         [t("周日兑换", "Sunday only", "Nur sonntags"), t("积分累积", "Carry-over points", "Punkte bleiben erhalten"), t("奖励分档", "Reward tiers", "Belohnungsstufen")],
     )
 
-    st.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
+    status_col, tip_col = st.columns([0.75, 1.25])
+    with status_col:
+        st.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
+    with tip_col:
+        st.markdown(
+            f"""
+            <div class="soft-card">
+                <h3>{t("兑换提示", "Redeem Tip", "Einlösehinweis")}</h3>
+                <p>{t("奖励会按顺序排开，手机上从上往下直接选。", "Rewards are arranged in order, so on phones you can simply choose from top to bottom.", "Die Belohnungen sind der Reihe nach angeordnet, sodass du auf dem Handy einfach von oben nach unten wählen kannst.")}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     if can_redeem_today:
         st.success(t("今天是周日，可以兑换奖励。", "Today is Sunday. Reward redemption is available.", "Heute ist Sonntag. Belohnungen können eingelöst werden."))
     else:
         st.warning(t("今天不是周日，奖励仅可在周日兑换。", "Today is not Sunday. Rewards can only be redeemed on Sunday.", "Heute ist nicht Sonntag. Belohnungen können nur sonntags eingelöst werden."))
 
     st.markdown("---")
-    for reward in REWARD_TIERS:
+    sorted_rewards = sorted(REWARD_TIERS, key=lambda reward: reward["points"])
+    for reward in sorted_rewards:
+        can_afford = current_points >= reward["points"]
+        can_redeem = can_redeem_today and can_afford
+        unlocked_text = (
+            t("可以兑换", "Ready to redeem", "Bereit zum Einlösen")
+            if can_redeem
+            else t("积分够了，等周日", "Enough points, wait for Sunday", "Genug Punkte, bis Sonntag warten")
+            if can_afford
+            else t("还差", "Need", "Noch nötig")
+        )
+        remain = 0 if can_afford else reward["points"] - current_points
+
         st.markdown(
             f"""
-            <div class="soft-card">
+            <div class="play-card">
                 <h3>{t(reward['name_zh'], reward['name_en'], reward['name_de'])}</h3>
-                <p>{reward['points']} {t('分', 'points', 'Punkte')}</p>
+                <p style="font-weight:700;">{reward['points']} {t('分', 'points', 'Punkte')}</p>
                 <p>{t(reward['desc_zh'], reward['desc_en'], reward['desc_de'])}</p>
+                <p style="margin-top:10px;font-weight:700;">{unlocked_text} {remain if remain else ""}</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        can_afford = current_points >= reward["points"]
-        can_redeem = can_redeem_today and can_afford
-        col1, col2 = st.columns([1, 2])
-        with col1:
+        action_col, state_col = st.columns([1.1, 0.9])
+        with action_col:
             if st.button(t("立即兑换", "Redeem Now", "Jetzt einlösen"), key=f"redeem_{reward['id']}", disabled=not can_redeem, use_container_width=True):
                 new_points = current_points - reward["points"]
                 append_redeem_log(
@@ -324,7 +416,7 @@ def render_reward_shop() -> None:
                 )
                 st.success(f"{t('兑换成功，剩余积分', 'Redeemed successfully. Remaining points', 'Erfolgreich eingelöst. Verbleibende Punkte')}: {new_points}")
                 st.rerun()
-        with col2:
+        with state_col:
             if not can_afford:
                 st.info(t("积分不足。", "Not enough points yet.", "Noch nicht genug Punkte."))
             elif not can_redeem_today:
@@ -505,14 +597,22 @@ def render_parent_dashboard() -> None:
     if daily_df.empty:
         st.info(t("本周还没有每日记录。", "No daily records yet for this week.", "Für diese Woche gibt es noch keine Tagesprotokolle."))
     else:
-        st.dataframe(_localize_daily_df(daily_df), use_container_width=True, hide_index=True)
+        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
+        with card_tab:
+            _render_daily_log_cards(daily_df)
+        with table_tab:
+            st.dataframe(_localize_daily_df(daily_df), use_container_width=True, hide_index=True)
 
     st.markdown("---")
     st.subheader(t("🧸 兑换记录", "🧸 Redemption History", "🧸 Einlöseverlauf"))
     if redeem_df.empty:
         st.info(t("本周还没有兑换记录。", "No reward redemption this week yet.", "Für diese Woche gibt es noch keine Einlösungen."))
     else:
-        st.dataframe(_localize_redeem_df(redeem_df), use_container_width=True, hide_index=True)
+        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
+        with card_tab:
+            _render_redeem_log_cards(redeem_df)
+        with table_tab:
+            st.dataframe(_localize_redeem_df(redeem_df), use_container_width=True, hide_index=True)
 
 
 def render_monthly_report() -> None:
@@ -617,14 +717,22 @@ def render_monthly_report() -> None:
     if month_daily.empty:
         st.info(t("这个月还没有每日记录。", "No daily records for this month yet.", "Für diesen Monat gibt es noch keine Tagesprotokolle."))
     else:
-        st.dataframe(_localize_daily_df(month_daily), use_container_width=True, hide_index=True)
+        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
+        with card_tab:
+            _render_daily_log_cards(month_daily)
+        with table_tab:
+            st.dataframe(_localize_daily_df(month_daily), use_container_width=True, hide_index=True)
 
     st.markdown("---")
     st.subheader(t("🧸 本月兑换记录", "🧸 Redemptions This Month", "🧸 Einlösungen dieses Monats"))
     if month_redeem.empty:
         st.info(t("这个月还没有兑换记录。", "No redemptions for this month yet.", "Für diesen Monat gibt es noch keine Einlösungen."))
     else:
-        st.dataframe(_localize_redeem_df(month_redeem), use_container_width=True, hide_index=True)
+        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
+        with card_tab:
+            _render_redeem_log_cards(month_redeem)
+        with table_tab:
+            st.dataframe(_localize_redeem_df(month_redeem), use_container_width=True, hide_index=True)
 
 
 def render_edit_records() -> None:
@@ -641,7 +749,11 @@ def render_edit_records() -> None:
     else:
         daily_df["timestamp"] = daily_df["timestamp"].astype(str)
         daily_show = daily_df.sort_values(by="timestamp", ascending=False).reset_index(drop=True)
-        st.dataframe(_localize_daily_df(daily_show), use_container_width=True, hide_index=True)
+        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
+        with card_tab:
+            _render_daily_log_cards(daily_show)
+        with table_tab:
+            st.dataframe(_localize_daily_df(daily_show), use_container_width=True, hide_index=True)
         daily_show["display_label"] = daily_show["date"].astype(str) + " | " + daily_show["timestamp"].astype(str)
         selected_daily = st.selectbox(t("选择一条记录", "Select a row", "Zeile auswählen"), daily_show["display_label"].tolist())
         selected_row = daily_show[daily_show["display_label"] == selected_daily].iloc[0]
@@ -677,7 +789,11 @@ def render_edit_records() -> None:
     else:
         redeem_df["timestamp"] = redeem_df["timestamp"].astype(str)
         redeem_show = redeem_df.sort_values(by="timestamp", ascending=False).reset_index(drop=True)
-        st.dataframe(_localize_redeem_df(redeem_show), use_container_width=True, hide_index=True)
+        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
+        with card_tab:
+            _render_redeem_log_cards(redeem_show)
+        with table_tab:
+            st.dataframe(_localize_redeem_df(redeem_show), use_container_width=True, hide_index=True)
         redeem_show["display_label"] = redeem_show["date"].astype(str) + " | " + redeem_show["timestamp"].astype(str)
         selected_label = st.selectbox(t("选择一条兑换记录", "Select a redeem row", "Einlösezeile auswählen"), redeem_show["display_label"].tolist())
         selected_redeem = redeem_show[redeem_show["display_label"] == selected_label].iloc[0]

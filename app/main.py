@@ -107,11 +107,12 @@ if route == "home":
         f"""
         <div class="map-panel">
             <div class="map-title">{t('🗺️ 呦呦冒险地图', "🗺️ Yoyo's Adventure Map", "🗺️ Yoyos Abenteuerkarte")}</div>
+            <div class="mobile-note">{t('先从最常用的入口开始，手机上会按顺序往下排。', "Start with the most-used stops first. On phones, they stack in order.", "Beginne mit den meistgenutzten Stationen. Auf dem Handy erscheinen sie der Reihe nach untereinander.")}</div>
         """,
         unsafe_allow_html=True,
     )
 
-    row1 = st.columns(3)
+    row1 = st.columns(2)
     with row1[0]:
         render_map_card(
             "task_center", "🍭", "任务糖果屋", "Task Candy House", "Aufgaben-Süßigkeitenhaus",
@@ -126,21 +127,14 @@ if route == "home":
             "Collect this week's records and reward letters.",
             "Sammle die Einträge und Belohnungsbriefe dieser Woche.",
         )
-    with row1[2]:
+
+    row2 = st.columns(2)
+    with row2[0]:
         render_map_card(
             "reward_shop", "🧸", "奖励玩具店", "Reward Toy Shop", "Belohnungs-Spielzeugladen",
             "周日晚上拿积分换喜欢的小礼物。",
             "Trade points for little favorite rewards on Sunday night.",
             "Tausche am Sonntagabend Punkte gegen kleine Lieblingsgeschenke.",
-        )
-
-    row2 = st.columns(3)
-    with row2[0]:
-        render_map_card(
-            "growth_report", "🚪", "星星门报告", "Star Gate Report", "Sternentor-Bericht",
-            "看看离下一个等级还有多远。",
-            "See how far the next level is.",
-            "Sieh nach, wie weit es noch bis zum nächsten Level ist.",
         )
     with row2[1]:
         render_map_card(
@@ -149,7 +143,16 @@ if route == "home":
             "Review points, habits, and redemptions by month.",
             "Sieh dir Punkte, Gewohnheiten und Einlösungen nach Monat an.",
         )
-    with row2[2]:
+
+    row3 = st.columns(2)
+    with row3[0]:
+        render_map_card(
+            "growth_report", "🚪", "星星门报告", "Star Gate Report", "Sternentor-Bericht",
+            "看看离下一个等级还有多远。",
+            "See how far the next level is.",
+            "Sieh nach, wie weit es noch bis zum nächsten Level ist.",
+        )
+    with row3[1]:
         render_map_card(
             "parent_dashboard", "🏡", "家长小屋", "Parent Cottage", "Elternhäuschen",
             "给家长看一眼就懂的本周概览。",
@@ -157,8 +160,8 @@ if route == "home":
             "Eine schnelle Wochenübersicht für Eltern auf einen Blick.",
         )
 
-    row3 = st.columns(3)
-    with row3[0]:
+    row4 = st.columns(2)
+    with row4[0]:
         render_map_card(
             "edit_records", "🛠️", "修修工坊", "Fix-It Workshop", "Reparaturwerkstatt",
             "如果历史记录需要改动，从这里进去。",

@@ -218,9 +218,10 @@ def get_engine() -> Engine:
 
 
 def clear_data_caches() -> None:
-    load_daily_logs.clear()
-    load_redeem_logs.clear()
-    load_week_logs.clear()
+    for loader in (load_daily_logs, load_redeem_logs, load_week_logs):
+        clear = getattr(loader, "clear", None)
+        if clear is not None:
+            clear()
 
 
 def _table_count(engine: Engine, table: Table) -> int:
@@ -295,19 +296,16 @@ def _fetch_rows(table: Table, fieldnames: list[str], order_columns: list[Any]) -
     return [dict(row) for row in rows]
 
 
-@st.cache_data(show_spinner=False)
 def load_daily_logs() -> list[dict[str, Any]]:
     rows = _fetch_rows(daily_log_table, DAILY_FIELDS, [daily_log_table.c.timestamp, daily_log_table.c.date])
     return [_normalize_daily_row(row) for row in rows]
 
 
-@st.cache_data(show_spinner=False)
 def load_redeem_logs() -> list[dict[str, Any]]:
     rows = _fetch_rows(redeem_log_table, REDEEM_FIELDS, [redeem_log_table.c.timestamp, redeem_log_table.c.date])
     return [_normalize_redeem_row(row) for row in rows]
 
 
-@st.cache_data(show_spinner=False)
 def load_week_logs() -> list[dict[str, Any]]:
     rows = _fetch_rows(weekly_log_table, WEEK_FIELDS, [weekly_log_table.c.week_start_date])
     return [_normalize_week_row(row) for row in rows]
