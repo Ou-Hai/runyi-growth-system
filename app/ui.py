@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from auth import auth_configured, ensure_auth_state, is_admin, login, logout
 
 LANG_OPTIONS = {
     "中文": "zh",
@@ -22,6 +23,7 @@ def t(zh: str, en: str, de: str | None = None) -> str:
 def init_sidebar(current_route: str = "home") -> str:
     if "lang" not in st.session_state:
         st.session_state["lang"] = "zh"
+    ensure_auth_state()
 
     top_left, top_mid, top_right = st.columns([0.9, 1.4, 0.7])
     with top_left:
@@ -49,7 +51,35 @@ def init_sidebar(current_route: str = "home") -> str:
         if choice:
             st.session_state["lang"] = LANG_OPTIONS[choice]
     with top_right:
-        st.write("")
+        if is_admin():
+            st.caption(t("管理员模式", "Admin Mode", "Admin-Modus"))
+            if st.button(t("退出登录", "Log Out", "Abmelden"), key="logout_admin", use_container_width=True):
+                logout()
+                st.rerun()
+        elif auth_configured():
+            if st.session_state.get("show_login_form", False):
+                with st.form("admin_login_form", clear_on_submit=True):
+                    password = st.text_input(
+                        t("管理员密码", "Admin Password", "Admin-Passwort"),
+                        type="password",
+                        label_visibility="collapsed",
+                        placeholder=t("管理员密码", "Admin password", "Admin-Passwort"),
+                    )
+                    submitted = st.form_submit_button(t("登录", "Log In", "Anmelden"), use_container_width=True)
+                if submitted:
+                    if login(password):
+                        st.rerun()
+                    st.error(t("密码不正确。", "Incorrect password.", "Falsches Passwort."))
+                if st.button(t("取消", "Cancel", "Abbrechen"), key="cancel_admin_login", use_container_width=True):
+                    st.session_state["show_login_form"] = False
+                    st.rerun()
+            else:
+                st.caption(t("只读模式", "Read-Only", "Nur Lesen"))
+                if st.button(t("管理员登录", "Admin Login", "Admin-Anmeldung"), key="show_admin_login", use_container_width=True):
+                    st.session_state["show_login_form"] = True
+                    st.rerun()
+        else:
+            st.caption(t("只读模式", "Read-Only", "Nur Lesen"))
 
     return st.session_state["lang"]
 
@@ -382,15 +412,16 @@ def inject_styles() -> None:
 
         @media (max-width: 900px) {
             .block-container {
-                padding-top: 0.9rem;
-                padding-left: 0.9rem;
-                padding-right: 0.9rem;
-                padding-bottom: 1.4rem;
+                padding-top: 0.55rem;
+                padding-left: 0.72rem;
+                padding-right: 0.72rem;
+                padding-bottom: 1rem;
             }
 
             .hero-card {
-                padding: 22px 20px 20px;
-                border-radius: 26px;
+                padding: 18px 16px 16px;
+                border-radius: 24px;
+                margin-bottom: 14px;
             }
 
             .hero-card::before {
@@ -406,54 +437,56 @@ def inject_styles() -> None:
             }
 
             .map-panel {
-                padding: 18px 16px 8px;
-                border-radius: 24px;
+                padding: 14px 12px 4px;
+                border-radius: 20px;
             }
 
             .map-card button {
-                min-height: 148px;
-                border-radius: 22px;
-                padding: 18px 16px 14px;
+                min-height: 126px;
+                border-radius: 18px;
+                padding: 14px 12px 11px;
             }
 
             .map-card button p {
-                font-size: 1rem;
-                line-height: 1.45;
+                font-size: 0.95rem;
+                line-height: 1.36;
             }
 
             .play-card,
             .soft-card,
             .celebration-card,
             [data-testid="stMetric"] {
-                border-radius: 20px;
-                padding: 14px 16px;
-            }
-
-            .pill-row {
-                gap: 8px;
-            }
-
-            .pill {
-                font-size: 0.84rem;
-                padding: 7px 10px;
-            }
-
-            .home-scene {
-                min-height: 92px;
+                border-radius: 18px;
+                padding: 12px 13px;
                 margin-bottom: 10px;
             }
 
+            .pill-row {
+                gap: 6px;
+                margin-top: 8px;
+            }
+
+            .pill {
+                font-size: 0.8rem;
+                padding: 6px 9px;
+            }
+
+            .home-scene {
+                min-height: 74px;
+                margin: 2px 0 8px 0;
+            }
+
             .float-item {
-                font-size: 1.5rem;
+                font-size: 1.32rem;
             }
 
             .record-grid {
                 grid-template-columns: 1fr;
-                gap: 10px;
+                gap: 8px;
             }
 
             [data-testid="stHorizontalBlock"] {
-                gap: 0.75rem;
+                gap: 0.5rem;
             }
 
             [data-testid="column"] {
@@ -462,8 +495,67 @@ def inject_styles() -> None:
             }
 
             .stButton > button {
-                min-height: 2.9rem;
-                font-size: 1rem;
+                min-height: 2.55rem;
+                font-size: 0.96rem;
+            }
+
+            .map-title {
+                font-size: 1.16rem;
+                margin-bottom: 8px;
+            }
+
+            .record-card {
+                padding: 12px 13px;
+                margin-bottom: 8px;
+                border-radius: 18px;
+            }
+
+            .record-card-header {
+                margin-bottom: 8px;
+                gap: 8px;
+            }
+
+            .record-card-title {
+                font-size: 0.96rem;
+            }
+
+            .record-pill {
+                padding: 4px 8px;
+                font-size: 0.78rem;
+            }
+
+            .record-cell-label {
+                font-size: 0.76rem;
+                margin-bottom: 2px;
+            }
+
+            .record-cell-value {
+                font-size: 0.9rem;
+            }
+
+            h1, h2, h3 {
+                margin-bottom: 0.2rem;
+            }
+
+            p {
+                margin-bottom: 0.35rem;
+            }
+
+            [data-testid="stTabs"] {
+                margin-top: 0.2rem;
+            }
+
+            [data-testid="stMarkdownContainer"] hr {
+                margin: 0.65rem 0;
+            }
+
+            [data-testid="stAlert"] {
+                padding: 0.55rem 0.7rem;
+                border-radius: 16px;
+            }
+
+            div[data-testid="stProgress"] {
+                margin: 0.3rem 0 0.55rem 0;
             }
         }
         </style>
@@ -476,11 +568,12 @@ def render_hero(title: str, subtitle: str, pills: list[str] | None = None, varia
     pills = pills or []
     pills_html = "".join(f'<span class="pill">{item}</span>' for item in pills)
     hero_class = "hero-card home-hero" if variant == "home" else "hero-card"
+    subtitle_html = f'<p style="margin-top:12px;font-size:1.05rem;opacity:0.97;">{subtitle}</p>' if subtitle else ""
     st.markdown(
         f"""
         <div class="{hero_class}">
             <h2>{title}</h2>
-            <p style="margin-top:12px;font-size:1.05rem;opacity:0.97;">{subtitle}</p>
+            {subtitle_html}
             <div class="pill-row">{pills_html}</div>
         </div>
         """,

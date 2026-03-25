@@ -89,7 +89,6 @@ with right:
         unsafe_allow_html=True,
     )
     st.progress(completion_ratio)
-    st.caption(t("这是今天填写完成度的小动画进度。", "This is the little completion progress for today's check-in."))
 
     next_reward = next((reward for reward in REWARD_TIERS if current_points < reward["points"]), None)
     if next_reward:

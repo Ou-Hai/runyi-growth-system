@@ -2,6 +2,7 @@ from datetime import datetime
 
 import streamlit as st
 
+from auth import is_admin
 from data_manager import get_current_week_start, load_points
 from router_views import (
     render_edit_records,
@@ -18,11 +19,11 @@ from ui import init_sidebar, inject_styles, render_hero, render_home_scene, t
 ROUTES = {
     "home": {"emoji": "🗺️", "zh": "糖果地图", "en": "Candy Map", "de": "Bonbonkarte", "render": None},
     "task_center": {"emoji": "🍭", "zh": "任务糖果屋", "en": "Task Candy House", "de": "Aufgaben-Süßigkeitenhaus", "render": render_task_center},
-    "weekly_summary": {"emoji": "📮", "zh": "总结邮局", "en": "Summary Post Office", "de": "Zusammenfassungs-Postamt", "render": render_weekly_summary},
+    "weekly_summary": {"emoji": "📮", "zh": "本周总览", "en": "Weekly Overview", "de": "Wochenüberblick", "render": render_weekly_summary},
     "monthly_report": {"emoji": "🗓️", "zh": "月度报告", "en": "Monthly Report", "de": "Monatsbericht", "render": render_monthly_report},
     "reward_shop": {"emoji": "🧸", "zh": "奖励玩具店", "en": "Reward Toy Shop", "de": "Belohnungs-Spielzeugladen", "render": render_reward_shop},
-    "growth_report": {"emoji": "🚪", "zh": "星星门报告", "en": "Star Gate Report", "de": "Sternentor-Bericht", "render": render_growth_report},
-    "parent_dashboard": {"emoji": "🏡", "zh": "家长小屋", "en": "Parent Cottage", "de": "Elternhäuschen", "render": render_parent_dashboard},
+    "growth_report": {"emoji": "📮", "zh": "本周总览", "en": "Weekly Overview", "de": "Wochenüberblick", "render": render_growth_report},
+    "parent_dashboard": {"emoji": "📮", "zh": "本周总览", "en": "Weekly Overview", "de": "Wochenüberblick", "render": render_parent_dashboard},
     "edit_records": {"emoji": "🛠️", "zh": "修修工坊", "en": "Fix-It Workshop", "de": "Reparaturwerkstatt", "render": render_edit_records},
 }
 
@@ -88,9 +89,9 @@ if route == "home":
     render_hero(
         t(f"🌟 {APP_TITLE_ZH}", f"🌟 {APP_TITLE_EN}", f"🌟 {APP_TITLE_DE}"),
         t(
-            f"欢迎来到 {CHILD_NAME_ZH} 的插画小地图。选一扇星星门、糖果屋或玩具店，开始今天的成长冒险。",
-            f"Welcome to {CHILD_NAME_EN}'s illustrated little map. Pick a star gate, candy house, or toy shop to begin today's growth adventure.",
-            f"Willkommen auf {CHILD_NAME_DE}s illustrierter kleiner Karte. Wähle ein Sternentor, ein Süßigkeitenhaus oder einen Spielzeugladen und starte das heutige Wachstumsabenteuer.",
+            f"欢迎来到 {CHILD_NAME_ZH} 的插画小地图。选任务糖果屋、本周总览或奖励玩具店，开始今天的成长冒险。",
+            f"Welcome to {CHILD_NAME_EN}'s illustrated little map. Pick the Task Candy House, Weekly Overview, or Reward Toy Shop to begin today's growth adventure.",
+            f"Willkommen auf {CHILD_NAME_DE}s illustrierter kleiner Karte. Wähle das Aufgaben-Süßigkeitenhaus, den Wochenüberblick oder den Belohnungs-Spielzeugladen und starte das heutige Wachstumsabenteuer.",
         ),
         [],
         variant="home",
@@ -104,10 +105,10 @@ if route == "home":
             <div class="soft-card">
                 <h3>{t("🎈 出发前的小提示", "🎈 Little Hint Before You Start", "🎈 Kleiner Hinweis vor dem Start")}</h3>
                 <p>{t(
-                    f"今天可以先去任务糖果屋打卡，再去总结邮局看记录，周日晚上还能去奖励玩具店兑换礼物。",
-                    f"Start with the Task Candy House, stop by the Summary Post Office, and visit the Reward Toy Shop on Sunday night for prizes."
+                    f"今天可以先去任务糖果屋打卡，再去本周总览看记录和成长，周日晚上还能去奖励玩具店兑换礼物。",
+                    f"Start with the Task Candy House, then check Weekly Overview for records and growth, and visit the Reward Toy Shop on Sunday night for prizes."
                     ,
-                    "Beginne im Aufgaben-Süßigkeitenhaus, schau dann im Zusammenfassungs-Postamt vorbei und besuche am Sonntagabend den Belohnungs-Spielzeugladen für Geschenke."
+                    "Beginne im Aufgaben-Süßigkeitenhaus, schau dann im Wochenüberblick nach Einträgen und Fortschritt und besuche am Sonntagabend den Belohnungs-Spielzeugladen für Geschenke."
                 )}</p>
             </div>
             """,
@@ -122,7 +123,6 @@ if route == "home":
         f"""
         <div class="map-panel">
             <div class="map-title">{t('🗺️ 呦呦冒险地图', "🗺️ Yoyo's Adventure Map", "🗺️ Yoyos Abenteuerkarte")}</div>
-            <div class="mobile-note">{t('先从最常用的入口开始，手机上会按顺序往下排。', "Start with the most-used stops first. On phones, they stack in order.", "Beginne mit den meistgenutzten Stationen. Auf dem Handy erscheinen sie der Reihe nach untereinander.")}</div>
         """,
         unsafe_allow_html=True,
     )
@@ -137,10 +137,10 @@ if route == "home":
         )
     with row1[1]:
         render_map_card(
-            "weekly_summary", "📮", "总结邮局", "Summary Post Office", "Zusammenfassungs-Postamt",
-            "收一收这周的记录和兑换信件。",
-            "Collect this week's records and reward letters.",
-            "Sammle die Einträge und Belohnungsbriefe dieser Woche.",
+            "weekly_summary", "📮", "本周总览", "Weekly Overview", "Wochenüberblick",
+            "把记录、成长和兑换放在一页看完。",
+            "See records, growth, and redemptions on one page.",
+            "Sieh Einträge, Fortschritt und Einlösungen auf einer Seite.",
         )
 
     row2 = st.columns(2)
@@ -159,24 +159,7 @@ if route == "home":
             "Sieh dir Punkte, Gewohnheiten und Einlösungen nach Monat an.",
         )
 
-    row3 = st.columns(2)
-    with row3[0]:
-        render_map_card(
-            "growth_report", "🚪", "星星门报告", "Star Gate Report", "Sternentor-Bericht",
-            "看看离下一个等级还有多远。",
-            "See how far the next level is.",
-            "Sieh nach, wie weit es noch bis zum nächsten Level ist.",
-        )
-    with row3[1]:
-        render_map_card(
-            "parent_dashboard", "🏡", "家长小屋", "Parent Cottage", "Elternhäuschen",
-            "给家长看一眼就懂的本周概览。",
-            "A quick weekly overview for parents.",
-            "Eine schnelle Wochenübersicht für Eltern auf einen Blick.",
-        )
-
-    row4 = st.columns(2)
-    with row4[0]:
+    if is_admin():
         render_map_card(
             "edit_records", "🛠️", "修修工坊", "Fix-It Workshop", "Reparaturwerkstatt",
             "如果历史记录需要改动，从这里进去。",
@@ -187,6 +170,10 @@ if route == "home":
     st.markdown("</div>", unsafe_allow_html=True)
 else:
     meta = ROUTES[route]
+    if route == "edit_records" and not is_admin():
+        st.warning(t("这个页面仅管理员可用。", "This page is available to admins only.", "Diese Seite ist nur für Admins verfügbar."))
+        st.session_state["route"] = "home"
+        st.stop()
     st.markdown(
         f"""
         <div class="soft-card" style="margin-bottom:18px;">

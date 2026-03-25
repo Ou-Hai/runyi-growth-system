@@ -21,7 +21,7 @@ redeem_logs = get_current_week_redeem_logs()
 
 render_hero(
     t("👨‍👩‍👦 家长面板", "👨‍👩‍👦 Parent Dashboard"),
-    t("从家长视角快速查看本周表现。", "A parent-friendly view of the current week's performance."),
+    "",
     [t("本周数据", "Weekly data"), t("习惯趋势", "Habit trends"), t("兑换情况", "Rewards")],
 )
 

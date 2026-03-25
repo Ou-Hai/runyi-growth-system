@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
+from auth import auth_configured, is_admin
 from data_manager import (
     DAILY_FIELDS,
     REDEEM_FIELDS,
@@ -167,8 +168,47 @@ def _render_redeem_log_cards(df: pd.DataFrame) -> None:
         )
 
 
+def _render_readonly_notice() -> None:
+    if auth_configured() and not is_admin():
+        st.info(t("当前为只读模式。登录管理员后才可以修改积分、保存记录或兑换奖励。", "This session is read-only. Log in as admin to change points, save records, or redeem rewards.", "Diese Sitzung ist schreibgeschützt. Melde dich als Admin an, um Punkte zu ändern, Einträge zu speichern oder Belohnungen einzulösen."))
+
+
+def _get_level_info(points: int) -> dict:
+    if points >= 38:
+        return {"level": 4, "title_zh": "大师", "title_en": "Master", "title_de": "Meister", "current_min": 38, "next_level_points": None}
+    if points >= 24:
+        return {"level": 3, "title_zh": "冠军", "title_en": "Champion", "title_de": "Champion", "current_min": 24, "next_level_points": 38}
+    if points >= 12:
+        return {"level": 2, "title_zh": "探索者", "title_en": "Explorer", "title_de": "Entdecker", "current_min": 12, "next_level_points": 24}
+    return {"level": 1, "title_zh": "萌芽者", "title_en": "Budding Star", "title_de": "Kleiner Stern", "current_min": 0, "next_level_points": 12}
+
+
+def _get_week_status(net_growth: int) -> str:
+    if net_growth >= 8:
+        return t("优秀的一周", "Excellent Week", "Eine starke Woche")
+    if net_growth >= 4:
+        return t("进步明显", "Good Progress", "Deutlicher Fortschritt")
+    if net_growth >= 1:
+        return t("积极开始", "Positive Start", "Positiver Start")
+    return t("继续加油", "Keep Trying", "Weiter so")
+
+
+def _get_progress_data(current_points: int, level_info: dict) -> tuple[int, float]:
+    if level_info["next_level_points"] is None:
+        return 0, 1.0
+    points_needed = max(level_info["next_level_points"] - current_points, 0)
+    if level_info["current_min"] == 0:
+        effective_floor = WEEKLY_START_POINTS
+        effective_current = max(current_points - effective_floor, 0)
+        effective_range = max(level_info["next_level_points"] - effective_floor, 1)
+        return points_needed, max(0.0, min(effective_current / effective_range, 1.0))
+    level_range = level_info["next_level_points"] - level_info["current_min"]
+    return points_needed, max(0.0, min((current_points - level_info["current_min"]) / level_range, 1.0))
+
+
 def render_task_center() -> None:
     current_points = load_points()
+    admin_mode = is_admin()
 
     render_hero(
         t("✅ 今日任务中心", "✅ Task Center", "✅ Aufgabenbereich"),
@@ -188,6 +228,7 @@ def render_task_center() -> None:
     col1.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
     col2.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), get_current_week_start())
     col3.metric(t("今日目标上限", "Today's Max", "Heutiges Maximum"), f"+{MAX_DAILY_EARN} / -{MAX_DAILY_DEDUCT}")
+    _render_readonly_notice()
 
     st.markdown("---")
     left, right = st.columns([1.1, 0.9])
@@ -239,7 +280,6 @@ def render_task_center() -> None:
             unsafe_allow_html=True,
         )
         st.progress(completion_ratio)
-        st.caption(t("这是今天填写完成度的小动画进度。", "This is the little completion progress for today's check-in.", "Das ist der kleine Fortschrittsbalken für den heutigen Check-in."))
 
         next_reward = next((reward for reward in REWARD_TIERS if current_points < reward["points"]), None)
         reward_feedback = (
@@ -262,7 +302,7 @@ def render_task_center() -> None:
             unsafe_allow_html=True,
         )
 
-        if st.button(t("保存今天记录", "Save Today's Record", "Heutigen Eintrag speichern"), use_container_width=True):
+        if st.button(t("保存今天记录", "Save Today's Record", "Heutigen Eintrag speichern"), use_container_width=True, disabled=not admin_mode):
             upsert_daily_log(
                 earned_tasks=selected_earnings,
                 deduction_tasks=selected_deductions,
@@ -276,7 +316,7 @@ def render_task_center() -> None:
             st.success(f"{t('记录已保存，当前积分', 'Record saved. Current points', 'Eintrag gespeichert. Aktuelle Punkte')}: {load_points()}")
             st.rerun()
 
-        if st.button(t("撤销上一次操作", "Undo Last Action", "Letzte Aktion rückgängig machen"), use_container_width=True):
+        if st.button(t("撤销上一次操作", "Undo Last Action", "Letzte Aktion rückgängig machen"), use_container_width=True, disabled=not admin_mode):
             st.success(undo_last_action())
             st.rerun()
 
@@ -305,44 +345,128 @@ def render_task_center() -> None:
 def render_weekly_summary() -> None:
     current_points = load_points()
     current_week_start = get_current_week_start()
-    logs = get_current_week_daily_logs()
+    daily_logs = get_current_week_daily_logs()
     redeem_logs = get_current_week_redeem_logs()
+    level_info = _get_level_info(current_points)
 
     render_hero(
-        t("📈 每周总结", "📈 Weekly Summary", "📈 Wochenübersicht"),
-        t("快速回看本周的打卡和兑换记录。", "A quick review of this week's records and redemptions.", "Ein schneller Rückblick auf die Einträge und Einlösungen dieser Woche."),
-        [t("本周视角", "This week", "Diese Woche"), t("数据汇总", "Summaries", "Zusammenfassungen"), t("兑换历史", "Redemptions", "Einlösungen")],
+        t("📈 本周总览", "📈 Weekly Overview", "📈 Wochenüberblick"),
+        t(
+            f"一页看完 {CHILD_NAME_ZH} 这周的记录、成长和兑换。",
+            f"See {CHILD_NAME_EN}'s records, progress, and redemptions for this week on one page.",
+            f"Sieh {CHILD_NAME_DE}s Einträge, Fortschritt und Einlösungen dieser Woche auf einer Seite.",
+        ),
+        [t("本周数据", "Weekly data", "Wochendaten"), t("成长等级", "Growth level", "Wachstumslevel"), t("兑换记录", "Redemptions", "Einlösungen")],
     )
 
-    col1, col2 = st.columns(2)
+    daily_df = pd.DataFrame(daily_logs)
+    redeem_df = pd.DataFrame(redeem_logs)
+    if not daily_df.empty:
+        daily_df["earned_points"] = pd.to_numeric(daily_df["earned_points"])
+        daily_df["deduction_points"] = pd.to_numeric(daily_df["deduction_points"])
+        daily_df["net_change"] = pd.to_numeric(daily_df["net_change"])
+    if not redeem_df.empty:
+        redeem_df["points_cost"] = pd.to_numeric(redeem_df["points_cost"])
+        redeem_df["points_after_redeem"] = pd.to_numeric(redeem_df["points_after_redeem"])
+
+    weekly_net_growth = int(daily_df["net_change"].sum()) if not daily_df.empty else 0
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
     col2.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), current_week_start)
+    col3.metric(t("本周净增长", "Weekly Net Growth", "Nettozuwachs diese Woche"), weekly_net_growth)
+    col4.metric(t("记录天数", "Recorded Days", "Erfasste Tage"), len(daily_df))
 
     st.markdown("---")
-    st.subheader(t("🗓️ 本周每日记录", "🗓️ Daily Records This Week", "🗓️ Tagesprotokolle dieser Woche"))
-    if not logs:
+    st.subheader(t("⭐ 成长等级", "⭐ Growth Level", "⭐ Wachstumslevel"))
+    level_col1, level_col2 = st.columns(2)
+    level_col1.metric(t("当前等级", "Current Level", "Aktuelles Level"), f"Level {level_info['level']}")
+    level_col2.metric(t("等级称号", "Level Title", "Leveltitel"), t(level_info["title_zh"], level_info["title_en"], level_info["title_de"]))
+
+    points_needed, progress_value = _get_progress_data(current_points, level_info)
+    if level_info["next_level_points"] is not None:
+        st.write(f"{t('距离下一等级还差', 'Points needed for next level', 'Punkte bis zum nächsten Level')}: **{points_needed}**")
+        st.progress(progress_value)
+    else:
+        st.success(t("已经达到最高等级。", "Highest level reached.", "Das höchste Level ist erreicht."))
+        st.progress(1.0)
+
+    task_counter = {task["label_en"]: 0 for task in EARNING_TASKS}
+    if not daily_df.empty:
+        for task_str in daily_df["earned_tasks"].fillna(""):
+            for item in [part.strip() for part in str(task_str).split("|") if part.strip()]:
+                if item in task_counter:
+                    task_counter[item] += 1
+
+    total_earned = int(daily_df["earned_points"].sum()) if not daily_df.empty else 0
+    total_deducted = int(daily_df["deduction_points"].sum()) if not daily_df.empty else 0
+    week_status = _get_week_status(weekly_net_growth)
+    top_task_en = max(task_counter, key=task_counter.get) if task_counter else ""
+    top_task_count = task_counter.get(top_task_en, 0)
+    top_task = next(
+        (t(task["label_zh"], task["label_en"], task["label_de"]) for task in EARNING_TASKS if task["label_en"] == top_task_en),
+        t("暂无", "None yet", "Noch keine"),
+    )
+
+    st.markdown("---")
+    story_col, summary_col = st.columns([1.05, 0.95])
+    with story_col:
+        st.markdown(
+            f"""
+            <div class="soft-card">
+                <h3>{t(f'{CHILD_NAME_ZH}本周成长故事', f"{CHILD_NAME_EN}'s Weekly Story", f'{CHILD_NAME_DE}s Wochengeschichte')}</h3>
+                <p>{t(
+                    f"{CHILD_NAME_ZH} 这一周记录了 {len(daily_df)} 天，净增长 {weekly_net_growth} 分，最稳定的习惯是 {top_task}，一共完成了 {top_task_count} 次。",
+                    f"{CHILD_NAME_EN} logged {len(daily_df)} day(s) this week, gained {weekly_net_growth} net points, and the strongest habit was {top_task} with {top_task_count} completions.",
+                    f"{CHILD_NAME_DE} hat diese Woche an {len(daily_df)} Tag(en) Einträge gemacht, {weekly_net_growth} Nettopunkte gesammelt und die stärkste Gewohnheit war {top_task} mit {top_task_count} Abschlüssen."
+                )}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with summary_col:
+        st.markdown(
+            f"""
+            <div class="soft-card">
+                <h3>{t('本周摘要', 'Weekly Snapshot', 'Wochenüberblick')}</h3>
+                <p>{t('总加分', 'Total Earned', 'Gesammelte Pluspunkte')}: <b>{total_earned}</b></p>
+                <p>{t('总扣分', 'Total Deducted', 'Abgezogene Punkte')}: <b>{total_deducted}</b></p>
+                <p>{t('净增长', 'Net Growth', 'Nettozuwachs')}: <b>{weekly_net_growth}</b></p>
+                <p>{t('本周状态', 'Week Status', 'Wochenstatus')}: <b>{week_status}</b></p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("---")
+    st.subheader(t("📚 习惯统计", "📚 Habit Summary", "📚 Gewohnheitsübersicht"))
+    habit_df = pd.DataFrame({"Habit": [t(task["label_zh"], task["label_en"], task["label_de"]) for task in EARNING_TASKS], "Count": list(task_counter.values())})
+    habit_col1, habit_col2 = st.columns(2)
+    with habit_col1:
+        st.dataframe(habit_df, use_container_width=True, hide_index=True)
+    with habit_col2:
+        st.bar_chart(habit_df.set_index("Habit"))
+
+    if daily_df.empty:
+        st.markdown("---")
         st.info(t("本周还没有每日记录。", "No daily records for this week yet.", "Für diese Woche gibt es noch keine Tagesprotokolle."))
     else:
-        df = pd.DataFrame(logs)
-        df["earned_points"] = pd.to_numeric(df["earned_points"])
-        df["deduction_points"] = pd.to_numeric(df["deduction_points"])
-        df["net_change"] = pd.to_numeric(df["net_change"])
+        st.markdown("---")
+        st.subheader(t("📊 每日净变化", "📊 Daily Net Change", "📊 Tägliche Nettoveränderung"))
+        st.line_chart(daily_df[["date", "net_change"]].copy().set_index("date"))
+
+        st.markdown("---")
+        st.subheader(t("🗂️ 本周每日记录", "🗂️ Daily Records This Week", "🗂️ Tagesprotokolle dieser Woche"))
         card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
         with card_tab:
-            st.caption(t("手机上更适合看卡片视图。", "Card view is easier to use on phones.", "Die Kartenansicht ist auf dem Handy leichter zu nutzen."))
-            _render_daily_log_cards(df)
+            _render_daily_log_cards(daily_df)
         with table_tab:
-            st.dataframe(_localize_daily_df(df), use_container_width=True, hide_index=True)
-        st.line_chart(df[["date", "net_change"]].copy().set_index("date"))
+            st.dataframe(_localize_daily_df(daily_df), use_container_width=True, hide_index=True)
 
     st.markdown("---")
     st.subheader(t("🧸 本周兑换记录", "🧸 Reward Redemption This Week", "🧸 Einlösungen dieser Woche"))
-    if not redeem_logs:
+    if redeem_df.empty:
         st.info(t("本周还没有兑换记录。", "No reward redemption this week yet.", "Für diese Woche gibt es noch keine Einlösungen."))
     else:
-        redeem_df = pd.DataFrame(redeem_logs)
-        redeem_df["points_cost"] = pd.to_numeric(redeem_df["points_cost"])
-        redeem_df["points_after_redeem"] = pd.to_numeric(redeem_df["points_after_redeem"])
         card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
         with card_tab:
             _render_redeem_log_cards(redeem_df)
@@ -353,6 +477,7 @@ def render_weekly_summary() -> None:
 def render_reward_shop() -> None:
     current_points = load_points()
     can_redeem_today = datetime.today().weekday() == 6
+    admin_mode = is_admin()
 
     render_hero(
         t("🧸 奖励商店", "🧸 Reward Shop", "🧸 Belohnungsladen"),
@@ -360,19 +485,8 @@ def render_reward_shop() -> None:
         [t("周日兑换", "Sunday only", "Nur sonntags"), t("积分累积", "Carry-over points", "Punkte bleiben erhalten"), t("奖励分档", "Reward tiers", "Belohnungsstufen")],
     )
 
-    status_col, tip_col = st.columns([0.75, 1.25])
-    with status_col:
-        st.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
-    with tip_col:
-        st.markdown(
-            f"""
-            <div class="soft-card">
-                <h3>{t("兑换提示", "Redeem Tip", "Einlösehinweis")}</h3>
-                <p>{t("奖励会按顺序排开，手机上从上往下直接选。", "Rewards are arranged in order, so on phones you can simply choose from top to bottom.", "Die Belohnungen sind der Reihe nach angeordnet, sodass du auf dem Handy einfach von oben nach unten wählen kannst.")}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    st.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
+    _render_readonly_notice()
 
     if can_redeem_today:
         st.success(t("今天是周日，可以兑换奖励。", "Today is Sunday. Reward redemption is available.", "Heute ist Sonntag. Belohnungen können eingelöst werden."))
@@ -407,7 +521,7 @@ def render_reward_shop() -> None:
 
         action_col, state_col = st.columns([1.1, 0.9])
         with action_col:
-            if st.button(t("立即兑换", "Redeem Now", "Jetzt einlösen"), key=f"redeem_{reward['id']}", disabled=not can_redeem, use_container_width=True):
+            if st.button(t("立即兑换", "Redeem Now", "Jetzt einlösen"), key=f"redeem_{reward['id']}", disabled=not (can_redeem and admin_mode), use_container_width=True):
                 new_points = current_points - reward["points"]
                 append_redeem_log(
                     reward_name=reward["name_en"],
@@ -417,7 +531,9 @@ def render_reward_shop() -> None:
                 st.success(f"{t('兑换成功，剩余积分', 'Redeemed successfully. Remaining points', 'Erfolgreich eingelöst. Verbleibende Punkte')}: {new_points}")
                 st.rerun()
         with state_col:
-            if not can_afford:
+            if not admin_mode:
+                st.info(t("只读查看。管理员登录后可兑换。", "Read-only view. Log in as admin to redeem.", "Nur Ansicht. Als Admin anmelden, um einzulösen."))
+            elif not can_afford:
                 st.info(t("积分不足。", "Not enough points yet.", "Noch nicht genug Punkte."))
             elif not can_redeem_today:
                 st.info(t("请在周日再来兑换。", "Please come back on Sunday to redeem.", "Bitte komm am Sonntag zum Einlösen wieder."))
@@ -427,192 +543,11 @@ def render_reward_shop() -> None:
 
 
 def render_growth_report() -> None:
-    def get_level_info(points: int) -> dict:
-        if points >= 38:
-            return {"level": 4, "title_zh": "大师", "title_en": "Master", "title_de": "Meister", "current_min": 38, "next_level_points": None}
-        if points >= 24:
-            return {"level": 3, "title_zh": "冠军", "title_en": "Champion", "title_de": "Champion", "current_min": 24, "next_level_points": 38}
-        if points >= 12:
-            return {"level": 2, "title_zh": "探索者", "title_en": "Explorer", "title_de": "Entdecker", "current_min": 12, "next_level_points": 24}
-        return {"level": 1, "title_zh": "萌芽者", "title_en": "Budding Star", "title_de": "Kleiner Stern", "current_min": 0, "next_level_points": 12}
-
-    def get_week_status(net_growth: int) -> str:
-        if net_growth >= 8:
-            return t("优秀的一周", "Excellent Week", "Eine starke Woche")
-        if net_growth >= 4:
-            return t("进步明显", "Good Progress", "Deutlicher Fortschritt")
-        if net_growth >= 1:
-            return t("积极开始", "Positive Start", "Positiver Start")
-        return t("继续加油", "Keep Trying", "Weiter so")
-
-    def get_progress_data(current_points: int, level_info: dict) -> tuple[int, float]:
-        if level_info["next_level_points"] is None:
-            return 0, 1.0
-        points_needed = max(level_info["next_level_points"] - current_points, 0)
-        if level_info["current_min"] == 0:
-            effective_floor = WEEKLY_START_POINTS
-            effective_current = max(current_points - effective_floor, 0)
-            effective_range = max(level_info["next_level_points"] - effective_floor, 1)
-            return points_needed, max(0.0, min(effective_current / effective_range, 1.0))
-        level_range = level_info["next_level_points"] - level_info["current_min"]
-        return points_needed, max(0.0, min((current_points - level_info["current_min"]) / level_range, 1.0))
-
-    current_points = load_points()
-    logs = get_current_week_daily_logs()
-    level_info = get_level_info(current_points)
-
-    render_hero(
-        t("📝 周成长报告", "📝 Weekly Growth Report", "📝 Wochen-Wachstumsbericht"),
-        t(
-            f"用一页看清 {CHILD_NAME_ZH} 这周的习惯节奏、积分变化和成长状态。",
-            f"See {CHILD_NAME_EN}'s weekly rhythm, point changes, and growth story in one page.",
-            f"Sieh {CHILD_NAME_DE}s Wochenrhythmus, Punkteveränderungen und Wachstumsgeschichte auf einer Seite.",
-        ),
-        [t("等级成长", "Level growth", "Level-Fortschritt"), t("习惯高光", "Habit highlights", "Gewohnheits-Highlights"), t("每周故事", "Weekly story", "Wochengeschichte")],
-    )
-
-    col1, col2 = st.columns(2)
-    col1.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
-    col2.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), get_current_week_start())
-
-    st.markdown("---")
-    st.subheader(t("⭐ 成长等级", "⭐ Growth Level", "⭐ Wachstumslevel"))
-    col1, col2 = st.columns(2)
-    col1.metric(t("当前等级", "Current Level", "Aktuelles Level"), f"Level {level_info['level']}")
-    col2.metric(t("等级称号", "Level Title", "Leveltitel"), t(level_info["title_zh"], level_info["title_en"], level_info["title_de"]))
-
-    points_needed, progress_value = get_progress_data(current_points, level_info)
-    if level_info["next_level_points"] is not None:
-        st.write(f"{t('距离下一等级还差', 'Points needed for next level', 'Punkte bis zum nächsten Level')}: **{points_needed}**")
-        st.progress(progress_value)
-    else:
-        st.success(t("已经达到最高等级。", "Highest level reached.", "Das höchste Level ist erreicht."))
-        st.progress(1.0)
-
-    if not logs:
-        st.info(t("本周还没有记录，请先去任务中心打卡。", "No records this week yet. Please add records in Task Center first.", "Diese Woche gibt es noch keine Einträge. Bitte zuerst im Aufgabenbereich eintragen."))
-        return
-
-    df = pd.DataFrame(logs)
-    df["earned_points"] = pd.to_numeric(df["earned_points"])
-    df["deduction_points"] = pd.to_numeric(df["deduction_points"])
-    df["net_change"] = pd.to_numeric(df["net_change"])
-    total_days = len(df)
-    total_earned = int(df["earned_points"].sum())
-    total_deducted = int(df["deduction_points"].sum())
-    net_growth = int(df["net_change"].sum())
-    week_status = get_week_status(net_growth)
-
-    task_counter = {task["label_en"]: 0 for task in EARNING_TASKS}
-    for task_str in df["earned_tasks"].fillna(""):
-        for item in [part.strip() for part in str(task_str).split("|") if part.strip()]:
-            if item in task_counter:
-                task_counter[item] += 1
-    top_task_en = max(task_counter, key=task_counter.get)
-    top_task = next(ti for ti in [t(task["label_zh"], task["label_en"], task["label_de"]) for task in EARNING_TASKS if task["label_en"] == top_task_en])
-    top_task_count = task_counter[top_task_en]
-
-    st.markdown("---")
-    col1, col2 = st.columns([0.95, 1.05])
-    with col1:
-        st.markdown(
-            f"""
-            <div class="soft-card">
-                <h3>{t('本周摘要', 'Weekly Snapshot', 'Wochenüberblick')}</h3>
-                <p>{t('记录天数', 'Recorded Days', 'Erfasste Tage')}: <b>{total_days}</b></p>
-                <p>{t('总加分', 'Total Earned', 'Gesammelte Pluspunkte')}: <b>{total_earned}</b></p>
-                <p>{t('总扣分', 'Total Deducted', 'Abgezogene Punkte')}: <b>{total_deducted}</b></p>
-                <p>{t('净增长', 'Net Growth', 'Nettozuwachs')}: <b>{net_growth}</b></p>
-                <p>{t('本周状态', 'Week Status')}: <b>{week_status}</b></p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col2:
-        st.markdown(
-            f"""
-            <div class="soft-card">
-                <h3>{t(f'{CHILD_NAME_ZH}本周成长故事', f"{CHILD_NAME_EN}'s Weekly Story", f'{CHILD_NAME_DE}s Wochengeschichte')}</h3>
-                <p>{t(
-                    f"{CHILD_NAME_ZH} 这一周记录了 {total_days} 天，净增长 {net_growth} 分，最稳定的习惯是 {top_task}，一共完成了 {top_task_count} 次。",
-                    f"{CHILD_NAME_EN} logged {total_days} day(s) this week, gained {net_growth} net points, and the strongest habit was {top_task} with {top_task_count} completions.",
-                    f"{CHILD_NAME_DE} hat diese Woche an {total_days} Tag(en) Einträge gemacht, {net_growth} Nettopunkte gesammelt und die stärkste Gewohnheit war {top_task} mit {top_task_count} Abschlüssen."
-                )}</p>
-                <p>{t('继续保持，温柔稳定地积累，就是最好的成长节奏。', 'Keep going. Calm, steady accumulation is the best kind of growth.', 'Weiter so. Ruhiges und stetiges Sammeln ist der beste Wachstumsrhythmus.')}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    st.markdown("---")
-    st.subheader(t("📊 每日净变化", "📊 Daily Net Change", "📊 Tägliche Nettoveränderung"))
-    st.bar_chart(df[["date", "net_change"]].copy().set_index("date"))
+    render_weekly_summary()
 
 
 def render_parent_dashboard() -> None:
-    current_points = load_points()
-    daily_logs = get_current_week_daily_logs()
-    redeem_logs = get_current_week_redeem_logs()
-
-    render_hero(
-        t("👨‍👩‍👦 家长面板", "👨‍👩‍👦 Parent Dashboard", "👨‍👩‍👦 Elternbereich"),
-        t("从家长视角快速查看本周表现。", "A parent-friendly view of the current week's performance.", "Ein schneller Wochenüberblick aus Elternsicht."),
-        [t("本周数据", "Weekly data", "Wochendaten"), t("习惯趋势", "Habit trends", "Gewohnheitstrends"), t("兑换情况", "Rewards", "Belohnungen")],
-    )
-
-    daily_df = pd.DataFrame(daily_logs)
-    redeem_df = pd.DataFrame(redeem_logs)
-    if not daily_df.empty:
-        daily_df["earned_points"] = pd.to_numeric(daily_df["earned_points"])
-        daily_df["deduction_points"] = pd.to_numeric(daily_df["deduction_points"])
-        daily_df["net_change"] = pd.to_numeric(daily_df["net_change"])
-    if not redeem_df.empty:
-        redeem_df["points_cost"] = pd.to_numeric(redeem_df["points_cost"])
-        redeem_df["points_after_redeem"] = pd.to_numeric(redeem_df["points_after_redeem"])
-
-    task_counter = {task["label_en"]: 0 for task in EARNING_TASKS}
-    if not daily_df.empty:
-        for task_str in daily_df["earned_tasks"].fillna(""):
-            for item in [part.strip() for part in str(task_str).split("|") if part.strip()]:
-                if item in task_counter:
-                    task_counter[item] += 1
-    weekly_net_growth = int(daily_df["net_change"].sum()) if not daily_df.empty else 0
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
-    col2.metric(t("本周净增长", "Weekly Net Growth", "Nettozuwachs diese Woche"), weekly_net_growth)
-    col3.metric(t("记录天数", "Recorded Days", "Erfasste Tage"), len(daily_df))
-    col4.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), get_current_week_start())
-
-    st.markdown("---")
-    st.subheader(t("📚 习惯统计", "📚 Habit Summary", "📚 Gewohnheitsübersicht"))
-    habit_df = pd.DataFrame({"Habit": [t(task["label_zh"], task["label_en"], task["label_de"]) for task in EARNING_TASKS], "Count": list(task_counter.values())})
-    col1, col2 = st.columns(2)
-    with col1:
-        st.dataframe(habit_df, use_container_width=True, hide_index=True)
-    with col2:
-        st.bar_chart(habit_df.set_index("Habit"))
-
-    st.markdown("---")
-    st.subheader(t("🗂️ 每日记录", "🗂️ Daily Records", "🗂️ Tagesprotokolle"))
-    if daily_df.empty:
-        st.info(t("本周还没有每日记录。", "No daily records yet for this week.", "Für diese Woche gibt es noch keine Tagesprotokolle."))
-    else:
-        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
-        with card_tab:
-            _render_daily_log_cards(daily_df)
-        with table_tab:
-            st.dataframe(_localize_daily_df(daily_df), use_container_width=True, hide_index=True)
-
-    st.markdown("---")
-    st.subheader(t("🧸 兑换记录", "🧸 Redemption History", "🧸 Einlöseverlauf"))
-    if redeem_df.empty:
-        st.info(t("本周还没有兑换记录。", "No reward redemption this week yet.", "Für diese Woche gibt es noch keine Einlösungen."))
-    else:
-        card_tab, table_tab = st.tabs([t("卡片视图", "Card View", "Kartenansicht"), t("表格视图", "Table View", "Tabellenansicht")])
-        with card_tab:
-            _render_redeem_log_cards(redeem_df)
-        with table_tab:
-            st.dataframe(_localize_redeem_df(redeem_df), use_container_width=True, hide_index=True)
+    render_weekly_summary()
 
 
 def render_monthly_report() -> None:
@@ -736,6 +671,15 @@ def render_monthly_report() -> None:
 
 
 def render_edit_records() -> None:
+    if not is_admin():
+        render_hero(
+            t("✏️ 编辑记录", "✏️ Edit Records", "✏️ Einträge bearbeiten"),
+            t("这个页面仅管理员可用。", "This page is available to admins only.", "Diese Seite ist nur für Admins verfügbar."),
+            [t("只读访问", "Read-only access", "Nur Lesen")],
+        )
+        st.warning(t("请先登录管理员后再编辑历史记录。", "Please log in as admin before editing records.", "Bitte melde dich als Admin an, bevor du Einträge bearbeitest."))
+        return
+
     render_hero(
         t("✏️ 编辑记录", "✏️ Edit Records", "✏️ Einträge bearbeiten"),
         t("修正历史记录后，积分会自动从日志重新计算。", "After correcting a record, points are recalculated directly from logs.", "Nach einer Korrektur werden die Punkte direkt aus den Protokollen neu berechnet."),

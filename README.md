@@ -164,6 +164,27 @@ On first startup:
 - if the database is empty and `data/*.csv` exists, those CSV files are imported as seed data.
 - `weekly_log` is auto-initialized for the current week if needed.
 
+## Access Control
+
+The app now supports a simple admin login model:
+
+- visitors can browse pages in read-only mode,
+- only the admin session can save daily records, undo actions, redeem rewards, or edit historical logs,
+- the edit-records page is hidden unless the admin is logged in.
+
+Configure an admin password with either:
+
+- `RUNYI_ADMIN_PASSWORD`
+- `ADMIN_PASSWORD`
+
+You can set it in Streamlit secrets, for example:
+
+```toml
+RUNYI_ADMIN_PASSWORD = "replace-with-a-strong-password"
+```
+
+If no admin password is configured, the app stays in read-only mode.
+
 If Supabase `Security Advisor` still reports `RLS Disabled in Public`, run the SQL in [sql/supabase_enable_rls.sql](/Users/haiou/data_engineer/projects/runyi-growth-system/sql/supabase_enable_rls.sql) inside the Supabase SQL Editor. The final query in that file should return `rowsecurity = true` for `daily_log`, `redeem_log`, and `weekly_log`.
 
 ## Data Model
