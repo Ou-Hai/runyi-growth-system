@@ -3,7 +3,7 @@ from datetime import datetime
 import streamlit as st
 
 from auth import is_admin
-from data_manager import get_current_week_start, load_points
+from data_manager import load_points
 from router_views import (
     render_edit_records,
     render_growth_report,
@@ -46,16 +46,11 @@ def open_route(route: str) -> None:
     st.rerun()
 
 
-def _format_week_start_metric(value: str) -> str:
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return value
-
+def _format_date_metric(value: datetime) -> str:
     return t(
-        parsed.strftime("%m-%d"),
-        parsed.strftime("%b %d"),
-        parsed.strftime("%d.%m."),
+        value.strftime("%m-%d"),
+        value.strftime("%b %d"),
+        value.strftime("%d.%m."),
     )
 
 
@@ -84,7 +79,7 @@ route = st.session_state["route"]
 
 if route == "home":
     current_points = load_points()
-    current_week_start = get_current_week_start()
+    today = datetime.now()
 
     render_hero(
         t(f"🌟 {APP_TITLE_ZH}", f"🌟 {APP_TITLE_EN}", f"🌟 {APP_TITLE_DE}"),
@@ -117,7 +112,7 @@ if route == "home":
     with info_right:
         col1, col2 = st.columns(2)
         col1.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
-        col2.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), _format_week_start_metric(current_week_start))
+        col2.metric(t("今天日期", "Today", "Heute"), _format_date_metric(today))
 
     st.markdown(
         f"""
