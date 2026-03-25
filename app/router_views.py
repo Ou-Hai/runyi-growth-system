@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import streamlit as st
@@ -107,6 +107,17 @@ def _localize_redeem_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def _month_label(month_value: str) -> str:
     return datetime.strptime(month_value, "%Y-%m").strftime("%Y-%m")
+
+
+def _format_today_metric() -> str:
+    now = datetime.now()
+    return now.strftime("%m.%d")
+
+
+def _format_week_range_metric(week_start_value: str) -> str:
+    week_start = datetime.fromisoformat(week_start_value)
+    week_end = week_start + timedelta(days=6)
+    return f"{week_start.strftime('%m.%d')}-{week_end.strftime('%m.%d')}"
 
 
 def _format_record_value(value: object) -> str:
@@ -226,7 +237,7 @@ def render_task_center() -> None:
 
     col1, col2, col3 = st.columns(3)
     col1.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
-    col2.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), get_current_week_start())
+    col2.metric(t("今天日期", "Today", "Heute"), _format_today_metric())
     col3.metric(t("今日目标上限", "Today's Max", "Heutiges Maximum"), f"+{MAX_DAILY_EARN} / -{MAX_DAILY_DEDUCT}")
     _render_readonly_notice()
 
@@ -372,7 +383,7 @@ def render_weekly_summary() -> None:
     weekly_net_growth = int(daily_df["net_change"].sum()) if not daily_df.empty else 0
     col1, col2, col3, col4 = st.columns(4)
     col1.metric(t("当前可用积分", "Current Points", "Aktuelle Punkte"), current_points)
-    col2.metric(t("本周开始日期", "Week Start", "Wochenbeginn"), current_week_start)
+    col2.metric(t("本周日期", "Week Range", "Wochenzeitraum"), _format_week_range_metric(current_week_start))
     col3.metric(t("本周净增长", "Weekly Net Growth", "Nettozuwachs diese Woche"), weekly_net_growth)
     col4.metric(t("记录天数", "Recorded Days", "Erfasste Tage"), len(daily_df))
 

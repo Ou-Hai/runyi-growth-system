@@ -47,11 +47,7 @@ def open_route(route: str) -> None:
 
 
 def _format_date_metric(value: datetime) -> str:
-    return t(
-        value.strftime("%m-%d"),
-        value.strftime("%b %d"),
-        value.strftime("%d.%m."),
-    )
+    return value.strftime("%m.%d")
 
 
 def render_map_card(
