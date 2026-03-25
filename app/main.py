@@ -61,10 +61,14 @@ def render_map_card(
     desc_de: str,
 ) -> None:
     st.markdown('<div class="map-card">', unsafe_allow_html=True)
+
+    def build_label(title: str, desc: str) -> str:
+        return f"{icon}  {title}" if not desc else f"{icon}  {title}\n{desc}"
+
     label = t(
-        f"{icon}  {title_zh}\n{desc_zh}",
-        f"{icon}  {title_en}\n{desc_en}",
-        f"{icon}  {title_de}\n{desc_de}",
+        build_label(title_zh, desc_zh),
+        build_label(title_en, desc_en),
+        build_label(title_de, desc_de),
     )
     if st.button(label, key=f"map_{route}", use_container_width=True):
         open_route(route)
@@ -80,9 +84,9 @@ if route == "home":
     render_hero(
         t(f"🌟 {APP_TITLE_ZH}", f"🌟 {APP_TITLE_EN}", f"🌟 {APP_TITLE_DE}"),
         t(
-            f"欢迎来到 {CHILD_NAME_ZH} 的插画小地图。选任务糖果屋、本周总览或奖励玩具店，开始今天的成长冒险。",
-            f"Welcome to {CHILD_NAME_EN}'s illustrated little map. Pick the Task Candy House, Weekly Overview, or Reward Toy Shop to begin today's growth adventure.",
-            f"Willkommen auf {CHILD_NAME_DE}s illustrierter kleiner Karte. Wähle das Aufgaben-Süßigkeitenhaus, den Wochenüberblick oder den Belohnungs-Spielzeugladen und starte das heutige Wachstumsabenteuer.",
+            f"欢迎来到{CHILD_NAME_ZH}的成长地图。选任务糖果屋、本周总览或奖励玩具店，开始今天的成长冒险。",
+            f"Welcome to {CHILD_NAME_EN}'s growth map. Pick the Task Candy House, Weekly Overview, or Reward Toy Shop to begin today's growth adventure.",
+            f"Willkommen auf {CHILD_NAME_DE}s Wachstumskarte. Wähle das Aufgaben-Süßigkeitenhaus, den Wochenüberblick oder den Belohnungs-Spielzeugladen und starte das heutige Wachstumsabenteuer.",
         ),
         [],
         variant="home",
@@ -122,40 +126,40 @@ if route == "home":
     with row1[0]:
         render_map_card(
             "task_center", "🍭", "任务糖果屋", "Task Candy House", "Aufgaben-Süßigkeitenhaus",
-            "把今天的好习惯变成亮晶晶的积分。",
-            "Turn today's good habits into sparkling points.",
-            "Verwandle die guten Gewohnheiten von heute in funkelnde Punkte.",
+            "",
+            "",
+            "",
         )
     with row1[1]:
         render_map_card(
             "weekly_summary", "📮", "本周总览", "Weekly Overview", "Wochenüberblick",
-            "把记录、成长和兑换放在一页看完。",
-            "See records, growth, and redemptions on one page.",
-            "Sieh Einträge, Fortschritt und Einlösungen auf einer Seite.",
+            "",
+            "",
+            "",
         )
 
     row2 = st.columns(2)
     with row2[0]:
         render_map_card(
             "reward_shop", "🧸", "奖励玩具店", "Reward Toy Shop", "Belohnungs-Spielzeugladen",
-            "周日晚上拿积分换喜欢的小礼物。",
-            "Trade points for little favorite rewards on Sunday night.",
-            "Tausche am Sonntagabend Punkte gegen kleine Lieblingsgeschenke.",
+            "",
+            "",
+            "",
         )
     with row2[1]:
         render_map_card(
             "monthly_report", "🗓️", "月度报告", "Monthly Report", "Monatsbericht",
-            "按月份回看积分、习惯和兑换情况。",
-            "Review points, habits, and redemptions by month.",
-            "Sieh dir Punkte, Gewohnheiten und Einlösungen nach Monat an.",
+            "",
+            "",
+            "",
         )
 
     if is_admin():
         render_map_card(
             "edit_records", "🛠️", "修修工坊", "Fix-It Workshop", "Reparaturwerkstatt",
-            "如果历史记录需要改动，从这里进去。",
-            "Go here whenever a historical record needs fixing.",
-            "Gehe hier hinein, wenn alte Einträge korrigiert werden müssen.",
+            "",
+            "",
+            "",
         )
 
     st.markdown("</div>", unsafe_allow_html=True)
