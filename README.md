@@ -164,6 +164,8 @@ On first startup:
 - if the database is empty and `data/*.csv` exists, those CSV files are imported as seed data.
 - `weekly_log` is auto-initialized for the current week if needed.
 
+If Supabase `Security Advisor` still reports `RLS Disabled in Public`, run the SQL in [sql/supabase_enable_rls.sql](/Users/haiou/data_engineer/projects/runyi-growth-system/sql/supabase_enable_rls.sql) inside the Supabase SQL Editor. The final query in that file should return `rowsecurity = true` for `daily_log`, `redeem_log`, and `weekly_log`.
+
 ## Data Model
 
 ### `daily_log`
