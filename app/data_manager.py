@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import streamlit as st
-from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine, delete, func, insert, select, update
+from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine, delete, func, insert, select, text, update
 from sqlalchemy.engine import Engine
 
 from rules import WEEKLY_START_POINTS
@@ -43,6 +43,7 @@ REDEEM_FIELDS = [
 WEEK_FIELDS = ["week_start_date", "timestamp", "weekly_start_points"]
 
 metadata = MetaData()
+POSTGRES_PUBLIC_TABLES = ("daily_log", "redeem_log", "weekly_log")
 
 
 def StringColumn(name: str, primary_key: bool = False) -> Any:
@@ -216,8 +217,40 @@ def get_engine() -> Engine:
 
     engine = create_engine(database_url, future=True, pool_pre_ping=True)
     metadata.create_all(engine)
+    _ensure_postgres_table_security(engine)
     _bootstrap_from_csv_if_empty(engine)
     return engine
+
+
+def _ensure_postgres_table_security(engine: Engine) -> None:
+    if engine.dialect.name != "postgresql":
+        return
+
+    sql_statements: list[str] = []
+    for table_name in POSTGRES_PUBLIC_TABLES:
+        sql_statements.extend(
+            [
+                f'ALTER TABLE public."{table_name}" ENABLE ROW LEVEL SECURITY',
+                f'REVOKE ALL ON TABLE public."{table_name}" FROM PUBLIC',
+            ]
+        )
+
+        for role_name in ("anon", "authenticated"):
+            sql_statements.append(
+                f"""
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role_name}') THEN
+        EXECUTE 'REVOKE ALL ON TABLE public."{table_name}" FROM "{role_name}"';
+    END IF;
+END
+$$
+""".strip()
+            )
+
+    with engine.begin() as conn:
+        for statement in sql_statements:
+            conn.execute(text(statement))
 
 
 def clear_data_caches() -> None:

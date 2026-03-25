@@ -160,6 +160,7 @@ Notes:
 On first startup:
 
 - tables are created automatically if they do not exist,
+- for PostgreSQL-compatible databases such as Supabase, the app also enables RLS on its `public` tables and revokes direct access from `anon` / `authenticated`,
 - if the database is empty and `data/*.csv` exists, those CSV files are imported as seed data.
 - `weekly_log` is auto-initialized for the current week if needed.
 
